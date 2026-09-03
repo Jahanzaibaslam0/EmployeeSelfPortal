@@ -1,0 +1,197 @@
+@page
+@model HRMS.Pages.BenefitEntitlementSetupModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS - @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body>
+    @await Html.PartialAsync("_AppHeader", Model.PageTitle)
+
+    <main class="container">
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        <div class="card">
+            <div class="card-header">
+                <h2>@(Model.EntitlementInput.Id > 0 ? "Edit Benefit Entitlement" : "Add Benefit Entitlement")</h2>
+            </div>
+            <form method="post" action="/BenefitEntitlementSetup?handler=SaveEntitlement">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="itemId" value="@Model.EntitlementInput.Id" />
+                <input type="hidden" name="manageId" value="@Model.ManageEntitlementID" />
+                <div class="card-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Entitlement Name <span class="required">*</span></label>
+                            <input type="text" name="itemName" class="form-control"
+                                   value="@Model.EntitlementInput.Name" maxlength="150"
+                                   placeholder="e.g. Management Grade Benefits" />
+                        </div>
+                        <div class="form-group">
+                            <label>Alias</label>
+                            <input type="text" name="aliasName" class="form-control"
+                                   value="@Model.EntitlementInput.AliasName" maxlength="100"
+                                   placeholder="Short name / abbreviation" />
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="isActive" value="true"
+                                       @(Model.EntitlementInput.IsActive ? "checked" : "") /> Active
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        @(Model.EntitlementInput.Id > 0 ? "Update" : "Save")
+                    </button>
+                    <a href="/BenefitEntitlementSetup" class="btn btn-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header space-between">
+                <h2>Benefit Entitlement List</h2>
+                <input type="text" id="txtSearch" class="form-control" style="width:220px"
+                       placeholder="Search…" onkeyup="searchTable('entitlementTable', this.value)" />
+            </div>
+            <div class="card-body table-responsive">
+                <table class="data-table" id="entitlementTable">
+                    <thead class="grid-header">
+                        <tr>
+                            <th>Name</th>
+                            <th>Alias</th>
+                            <th>Benefits</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Entitlements.Count == 0)
+                        {
+                            <tr class="empty-row"><td colspan="5">No records found.</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var item in Model.Entitlements)
+                            {
+                                var benefitCount = Model.EntitlementBenefitCounts.ContainsKey(item.Id)
+                                    ? Model.EntitlementBenefitCounts[item.Id] : 0;
+                                <tr>
+                                    <td>@item.Name</td>
+                                    <td>@item.AliasName</td>
+                                    <td><span class="badge badge-success">@benefitCount</span></td>
+                                    <td>
+                                        <span class="badge @(item.IsActive ? "badge-success" : "badge-danger")">
+                                            @(item.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td class="actions-col">
+                                        <a class="btn-icon btn-edit" href="/BenefitEntitlementSetup?editId=@item.Id">Edit</a>
+                                        <a class="btn-icon btn-edit" href="/BenefitEntitlementSetup?manageId=@item.Id">Manage</a>
+                                        <form method="post" action="/BenefitEntitlementSetup?handler=DeleteEntitlement" style="display:inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="deleteId" value="@item.Id" />
+                                            <button type="submit" class="btn-icon btn-delete"
+                                                    onclick="return confirm('Remove this benefit entitlement?')">X</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @if (Model.ManageEntitlementID > 0)
+        {
+            <div class="card mt-4">
+                <div class="card-header space-between">
+                    <h2>Manage Benefits — @Model.ManageEntitlementName</h2>
+                    <a href="/BenefitEntitlementSetup" class="btn btn-secondary">Close</a>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/BenefitEntitlementSetup?handler=LinkBenefit" class="form-grid" style="align-items:end;margin-bottom:1.5rem;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="benefitEntitlementID" value="@Model.ManageEntitlementID" />
+                        <div class="form-group" style="flex:1;">
+                            <label>Add Benefit</label>
+                            <select name="benefitID" class="form-control">
+                                <option value="">-- Select Benefit --</option>
+                                @foreach (var ben in Model.AvailableBenefits)
+                                {
+                                    <option value="@ben.BenefitID">@ben.BenefitCode — @ben.BenefitName (@ben.BenefitType)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">Link Benefit</button>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="data-table" id="linkedTable">
+                            <thead class="grid-header">
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.LinkedBenefits.Count == 0)
+                                {
+                                    <tr class="empty-row"><td colspan="5">No benefits linked yet.</td></tr>
+                                }
+                                else
+                                {
+                                    foreach (var ben in Model.LinkedBenefits)
+                                    {
+                                        <tr>
+                                            <td><code style="font-size:.75rem;background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;">@ben.BenefitCode</code></td>
+                                            <td>@ben.BenefitName</td>
+                                            <td>@ben.BenefitType</td>
+                                            <td>@ben.Description</td>
+                                            <td class="actions-col">
+                                                <form method="post" action="/BenefitEntitlementSetup?handler=UnlinkBenefit" style="display:inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="detailID" value="@ben.DetailID" />
+                                                    <input type="hidden" name="benefitEntitlementID" value="@Model.ManageEntitlementID" />
+                                                    <button type="submit" class="btn-icon btn-delete"
+                                                            onclick="return confirm('Remove this benefit from the entitlement?')">X</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+    <script>
+        function searchTable(tableId, q) {
+            q = (q || '').toLowerCase();
+            document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function (r) {
+                r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

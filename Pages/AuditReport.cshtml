@@ -1,0 +1,239 @@
+@page
+@model HRMS.Pages.AuditReportModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS - @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .audit-filters .form-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+        .audit-meta { font-size: .78rem; color: var(--text-muted); margin-bottom: 1rem; }
+        .audit-details {
+            max-width: 280px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: .75rem;
+            color: #475569;
+        }
+        .action-pill {
+            display: inline-block;
+            padding: .15rem .55rem;
+            border-radius: 999px;
+            font-size: .68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .action-create  { background: #dcfce7; color: #166534; }
+        .action-update  { background: var(--gb-blue-light); color: var(--gb-blue); }
+        .action-delete  { background: #fee2e2; color: #b91c1c; }
+        .action-login   { background: #fef3c7; color: #b45309; }
+        .action-other   { background: #f1f5f9; color: #475569; }
+        .audit-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: .75rem;
+            margin-top: 1rem;
+        }
+        #auditTable { font-size: .78rem; }
+        #auditTable th { white-space: nowrap; }
+    </style>
+</head>
+<body>
+    @await Html.PartialAsync("_AppHeader", Model.PageTitle)
+
+    <main class="container">
+        <div class="card">
+            <div class="card-header">
+                <h2>Audit Log Filters</h2>
+            </div>
+            <form method="get" action="/AuditReport" class="audit-filters">
+                <div class="card-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Date From</label>
+                            <input type="date" name="dateFrom" class="form-control"
+                                   value="@Model.DateFrom?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label>Date To</label>
+                            <input type="date" name="dateTo" class="form-control"
+                                   value="@Model.DateTo?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label>User</label>
+                            <select name="filterUser" class="form-control">
+                                <option value="">All Users</option>
+                                @foreach (var u in Model.Users)
+                                {
+                                    if (Model.FilterUser == u)
+                                    {
+                                        <option value="@u" selected>@u</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@u">@u</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Action</label>
+                            <select name="filterAction" class="form-control">
+                                <option value="">All Actions</option>
+                                @foreach (var a in Model.ActionTypes)
+                                {
+                                    if (Model.FilterAction == a)
+                                    {
+                                        <option value="@a" selected>@a</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@a">@a</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Entity Type</label>
+                            <select name="filterEntity" class="form-control">
+                                <option value="">All Entities</option>
+                                @foreach (var e in Model.EntityTypes)
+                                {
+                                    if (Model.FilterEntity == e)
+                                    {
+                                        <option value="@e" selected>@e</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@e">@e</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Search</label>
+                            <input type="text" name="searchText" class="form-control"
+                                   value="@Model.SearchText" placeholder="Entity, details, page…" />
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <a href="/AuditReport" class="btn btn-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header space-between">
+                <h2>Audit Log Entries</h2>
+                <span class="audit-meta">@Model.TotalRecords total record(s)</span>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="data-table" id="auditTable">
+                    <thead class="grid-header">
+                        <tr>
+                            <th>Date / Time</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Entity</th>
+                            <th>Entity Name</th>
+                            <th>Page</th>
+                            <th>Handler</th>
+                            <th>Details</th>
+                            <th>IP</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Records.Count == 0)
+                        {
+                            <tr class="empty-row"><td colspan="10">No audit records found for the selected filters.</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var row in Model.Records)
+                            {
+                                var actionClass = row.ActionType switch
+                                {
+                                    "Create" or "Insert" => "action-create",
+                                    "Update" => "action-update",
+                                    "Delete" => "action-delete",
+                                    "Login" or "Logout" => "action-login",
+                                    _ => "action-other"
+                                };
+                                <tr>
+                                    <td>@row.ActionAt.ToString("dd-MMM-yyyy HH:mm:ss")</td>
+                                    <td>@row.Username</td>
+                                    <td><span class="action-pill @actionClass">@row.ActionType</span></td>
+                                    <td>
+                                        @row.EntityType
+                                        @if (row.EntityId.HasValue)
+                                        {
+                                            <span class="audit-meta"> (#@row.EntityId)</span>
+                                        }
+                                    </td>
+                                    <td>@row.EntityName</td>
+                                    <td>@row.PagePath</td>
+                                    <td>@row.HandlerName</td>
+                                    <td class="audit-details" title="@row.Details">@row.Details</td>
+                                    <td>@row.IpAddress</td>
+                                    <td>
+                                        <span class="badge @(row.Success ? "badge-success" : "badge-danger")">
+                                            @(row.Success ? "OK" : "Failed")
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+
+                @if (Model.TotalPages > 1)
+                {
+                    <div class="audit-pagination">
+                        <span class="audit-meta">
+                            Page @Model.PageNumber of @Model.TotalPages
+                        </span>
+                        <div style="display:flex;gap:.5rem;">
+                            @if (Model.PageNumber > 1)
+                            {
+                                <a class="btn btn-secondary"
+                                   href="@BuildPageUrl(Model.PageNumber - 1)">Previous</a>
+                            }
+                            @if (Model.PageNumber < Model.TotalPages)
+                            {
+                                <a class="btn btn-secondary"
+                                   href="@BuildPageUrl(Model.PageNumber + 1)">Next</a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+</body>
+</html>
+
+@functions {
+    string BuildPageUrl(int page)
+    {
+        var q = new List<string> { $"pageNumber={page}" };
+        if (Model.DateFrom.HasValue) q.Add($"dateFrom={Model.DateFrom.Value:yyyy-MM-dd}");
+        if (Model.DateTo.HasValue) q.Add($"dateTo={Model.DateTo.Value:yyyy-MM-dd}");
+        if (!string.IsNullOrWhiteSpace(Model.FilterUser)) q.Add($"filterUser={Uri.EscapeDataString(Model.FilterUser)}");
+        if (!string.IsNullOrWhiteSpace(Model.FilterAction)) q.Add($"filterAction={Uri.EscapeDataString(Model.FilterAction)}");
+        if (!string.IsNullOrWhiteSpace(Model.FilterEntity)) q.Add($"filterEntity={Uri.EscapeDataString(Model.FilterEntity)}");
+        if (!string.IsNullOrWhiteSpace(Model.SearchText)) q.Add($"searchText={Uri.EscapeDataString(Model.SearchText)}");
+        return "/AuditReport?" + string.Join("&", q);
+    }
+}
