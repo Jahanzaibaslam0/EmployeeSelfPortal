@@ -1,0 +1,3 @@
+STATUS=FAIL
+URL=http://localhost:5080
+ERROR=spawn EPERM — Cursor agent cannot start a shell on this machine, so restore/build/dotnet run did not execute. Run manually: cd D:\Project\HRMS; Copy-Item C:\Users\IT-KHI\Desktop\HRMS\Services\* .\Services\ -Force; Copy-Item C:\Users\IT-KHI\Desktop\HRMS\Middleware\* .\Middleware\ -Force -ErrorAction SilentlyContinue; Copy-Item C:\Users\IT-KHI\Desktop\HRMS\Filters\* .\Filters\ -Force -ErrorAction SilentlyContinue; Copy-Item C:\Users\IT-KHI\Desktop\HRMS\Program.cs .\Program.cs -Force; Copy-Item C:\Users\IT-KHI\Desktop\HRMS\appsettings.json .\appsettings.json -Force; dotnet restore; dotnet build; dotnet run --project .\HRMS.csproj --urls http://localhost:5080

@@ -1,0 +1,90 @@
+Copied css
+Copied js
+Copied images
+Wrote BankGroupSetup
+Wrote BillPreferenceSetup
+Wrote BloodGroupSetup
+Wrote BrandCodeSetup
+Wrote BrandGroupSetup
+Wrote BusinessSegmentSetup
+Wrote BusinessUnitSetup
+Wrote CostCenterSetup
+Wrote CustomerClassSetup
+Wrote CustomerGroupSetup
+Wrote DesignationLevelSetup
+Wrote DivisionSetup
+Wrote DocumentTypeSetup
+Wrote EmploymentStatusSetup
+Wrote EmploymentTypeSetup
+Wrote ExpenseCategorySetup
+Wrote FBRStatusSetup
+Wrote GenderSetup
+Wrote GradeSetup
+Wrote HSCodeSetup
+Wrote InventoryTypeSetup
+Wrote ItemGroupSetup
+Wrote ItemRegisteredSetup
+Wrote LeaveCategorySetup
+Wrote LocationSetup
+Wrote MethodOfPaymentSetup
+Wrote ModeOfDeliverySetup
+Wrote NationalitySetup
+Wrote ProductDivisionSetup
+Wrote ProductGroupSetup
+Wrote ProductNatureSetup
+Wrote ProductSalesGroupSetup
+Wrote ProductTeamSetup
+Wrote RegionSetup
+Wrote ReligionSetup
+Wrote SalesCategorySetup
+Wrote TaxGroupSetup
+Wrote TermsOfPaymentSetup
+Wrote TitleSetup
+Wrote UnitOfMeasureSetup
+Wrote UnitSetup
+Wrote WingSetup
+Wrote WorkforceSegmentSetup
+===COUNT=43===
+BankGroupSetup
+BillPreferenceSetup
+BloodGroupSetup
+BrandCodeSetup
+BrandGroupSetup
+BusinessSegmentSetup
+BusinessUnitSetup
+CostCenterSetup
+CustomerClassSetup
+CustomerGroupSetup
+DesignationLevelSetup
+DivisionSetup
+DocumentTypeSetup
+EmploymentStatusSetup
+EmploymentTypeSetup
+ExpenseCategorySetup
+FBRStatusSetup
+GenderSetup
+GradeSetup
+HSCodeSetup
+InventoryTypeSetup
+ItemGroupSetup
+ItemRegisteredSetup
+LeaveCategorySetup
+LocationSetup
+MethodOfPaymentSetup
+ModeOfDeliverySetup
+NationalitySetup
+ProductDivisionSetup
+ProductGroupSetup
+ProductNatureSetup
+ProductSalesGroupSetup
+ProductTeamSetup
+RegionSetup
+ReligionSetup
+SalesCategorySetup
+TaxGroupSetup
+TermsOfPaymentSetup
+TitleSetup
+UnitOfMeasureSetup
+UnitSetup
+WingSetup
+WorkforceSegmentSetup

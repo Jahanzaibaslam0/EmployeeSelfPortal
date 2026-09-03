@@ -1,0 +1,16 @@
+using HRMS.Services;
+
+namespace HRMS
+{
+    public partial class DesignationLevelSetupPage : LookupSetupBasePage
+    {
+        protected override string TableName => "tblDesignationLevel";
+        protected override string IdColumn => "DesignationLevelID";
+        protected override string NameColumn => "DesignationLevelName";
+        protected override string AliasColumn => "AliasName";
+
+        public override string PageTitle => "Designation Level Setup";
+        public override string ItemLabel => "Designation Level";
+        public override string PagePath => "/DesignationLevelSetup";
+    }
+}

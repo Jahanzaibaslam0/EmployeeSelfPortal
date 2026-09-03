@@ -1,0 +1,93 @@
+# Non-lookup Razor → Web Forms conversion summary
+
+## Created / refreshed .aspx (non-lookup)
+
+### Core / navigation
+- Default.aspx (+ Default.aspx.cs redirect Home/Login)
+- InitDatabase.aspx
+- ResetAdmin.aspx
+- Setup.aspx
+- Dashboard.aspx
+- UserProfile.aspx
+- Notifications.aspx
+- Memorandums.aspx
+- QuickLinks.aspx
+- AuditReport.aspx
+
+### Setup (CRUD or list)
+- CitySetup.aspx
+- ProvinceSetup.aspx
+- CurrencySetup.aspx
+- LegalEntitySetup.aspx
+- WorkArrangementSetup.aspx
+- WorkLocationTypeSetup.aspx
+- SalesGroupSetup.aspx
+- WorkerCategorySetup.aspx
+- DepartmentSetup.aspx
+- UserSetup.aspx
+- LanguageSetup.aspx
+- BankSetup.aspx
+- SkillSetup.aspx
+- ExtensionSetup.aspx
+- JobSetup.aspx
+- WorkerLocationSetup.aspx
+- BenefitSetup.aspx
+- BenefitEntitlementSetup.aspx
+- SalesTeamSetup.aspx
+- SoftwareLinkSetup.aspx
+- NotificationSetup.aspx
+- MemorandumSetup.aspx
+- ImageGallerySetup.aspx
+- UserRightsSetup.aspx (stub message; full matrix pending)
+
+### Masters / process
+- EmployeeMaster.aspx (list + core add/edit; full multi-tab Razor UI simplified)
+- CustomerMaster.aspx
+- VendorMaster.aspx
+- ProductMaster.aspx
+- ContactMaster.aspx
+- PurchaseOrderMaster.aspx
+- SalesOrderMaster.aspx
+- GoodsReceiptMaster.aspx
+- GoodsIssueMaster.aspx
+- InventoryMaster.aspx
+- InvoiceMaster.aspx
+- ExpenseMaster.aspx
+- TaskMaster.aspx
+- LeaveMaster.aspx
+- RecruitmentMaster.aspx
+- PositionMaster.aspx
+- PositionHierarchy.aspx
+- TrainingMaster.aspx
+- PerformanceMaster.aspx
+- EmployeeReport.aspx
+- InventoryReport.aspx
+- EmployeeCard.aspx
+- MyDocuments.aspx
+
+### Shared helpers
+- AppModels.cs
+- AppBase/SimpleCodeNameSetupPage.cs
+- AppBase/SimpleListMasterPage.cs
+- AppBase/TransactionMasterPages.cs
+- AppBase/RemainingPages.cs
+- ConvertNonLookupPages.py (automation; shell unavailable in this session)
+
+### Pre-existing (kept)
+- Login.aspx
+- Home.aspx (Index maps here)
+- GenderSetup.aspx / DivisionSetup.aspx (lookup — separate track)
+
+## Skipped (with reason)
+- All *Setup pages inheriting LookupSetupPageModel — handled separately via LookupSetup.Master
+- _AppHeader, _AppFooter, _LookupSetupPage, _MasterExcelPanel, _NotificationPopup — partials
+- _ViewImports — imports only
+- LookupSetupBase.cs — base class, not a page
+- Index.cshtml — maps to existing Home.aspx
+- Login.aspx — already present; not overwritten
+
+## Notes
+- Many transaction masters are **list-first** ports (SQL list grids) so the app navigates; full edit forms from Razor still need deepening for Customer/Vendor/PO/Invoice/etc.
+- EmployeeMaster is functional for list/create/edit of core fields; not a full port of contacts/banks/documents tabs.
+- Column names in list SQL may need alignment with actual DB schema if tables differ.
+- Run `python ConvertNonLookupPages.py` later if you want automated refresh of code-behind from Razor sources.

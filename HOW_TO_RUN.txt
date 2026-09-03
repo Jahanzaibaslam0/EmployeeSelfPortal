@@ -1,0 +1,13 @@
+# Double-click RUN.bat OR paste in PowerShell / Terminal:
+
+cd D:\Project\HRMS
+dotnet restore
+dotnet run --urls http://localhost:5080
+
+# Then open browser:
+# http://localhost:5080/Login
+
+# Database: appsettings.json uses LocalDB file
+#   D:\Project\DATA\HRMSDB.mdf
+# If DB missing, run Script.sql from D:\Project\DATA first,
+# or change connection to your SQL Server (e.g. GBHQBST-JAHANZA).
