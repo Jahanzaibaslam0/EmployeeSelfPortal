@@ -1,0 +1,395 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://go.microsoft.com/fwlink/?LinkID=208121. -->
+<Project>
+  <PropertyGroup>
+    <History>True|2026-09-01T10:49:50.1243612Z||;True|2026-09-01T11:33:25.9718454+05:00||;True|2026-08-31T14:34:15.0240477+05:00||;True|2026-08-31T11:06:25.2627645+05:00||;True|2026-08-27T16:51:56.6745395+05:00||;True|2026-08-24T14:55:26.1811306+05:00||;True|2026-08-24T09:31:55.6744908+05:00||;True|2026-08-23T20:01:29.0725002+05:00||;True|2026-08-22T16:39:44.1844241+05:00||;True|2026-08-22T11:55:44.9917266+05:00||;True|2026-08-22T10:07:10.9087633+05:00||;True|2026-08-20T15:29:35.8640725+05:00||;True|2026-08-20T15:22:01.4848549+05:00||;True|2026-08-20T14:26:46.2156241+05:00||;False|2026-08-20T14:23:19.0584018+05:00||;False|2026-08-20T12:46:43.4271941+05:00||;False|2026-08-20T12:46:39.5713000+05:00||;False|2026-08-20T12:43:10.0814090+05:00||;False|2026-08-20T12:36:07.3052680+05:00||;</History>
+    <LastFailureDetails />
+    <_PublishTargetUrl>C:\HRMS_Publish</_PublishTargetUrl>
+  </PropertyGroup>
+  <ItemGroup>
+    <File Include="AuditReport.aspx">
+      <publishTime>08/19/2026 23:55:37</publishTime>
+    </File>
+    <File Include="BankGroupSetup.aspx">
+      <publishTime>08/20/2026 00:04:55</publishTime>
+    </File>
+    <File Include="BankSetup.aspx">
+      <publishTime>08/20/2026 00:22:22</publishTime>
+    </File>
+    <File Include="BenefitEntitlementSetup.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="BenefitSetup.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="BillPreferenceSetup.aspx">
+      <publishTime>08/20/2026 00:04:56</publishTime>
+    </File>
+    <File Include="bin/ClosedXML.dll">
+      <publishTime>01/05/2024 19:14:24</publishTime>
+    </File>
+    <File Include="bin/DocumentFormat.OpenXml.dll">
+      <publishTime>03/15/2022 06:39:18</publishTime>
+    </File>
+    <File Include="bin/ExcelNumberFormat.dll">
+      <publishTime>10/02/2020 13:42:28</publishTime>
+    </File>
+    <File Include="bin/HRMS.dll">
+      <publishTime>09/01/2026 15:17:57</publishTime>
+    </File>
+    <File Include="bin/HRMS.pdb">
+      <publishTime>09/01/2026 15:17:57</publishTime>
+    </File>
+    <File Include="bin/SixLabors.Fonts.dll">
+      <publishTime>08/11/2023 17:04:56</publishTime>
+    </File>
+    <File Include="bin/System.IO.Packaging.dll">
+      <publishTime>10/23/2021 04:49:36</publishTime>
+    </File>
+    <File Include="BloodGroupSetup.aspx">
+      <publishTime>08/20/2026 00:04:57</publishTime>
+    </File>
+    <File Include="BrandCodeSetup.aspx">
+      <publishTime>08/20/2026 00:11:44</publishTime>
+    </File>
+    <File Include="BrandGroupSetup.aspx">
+      <publishTime>08/20/2026 00:05:00</publishTime>
+    </File>
+    <File Include="BusinessSegmentSetup.aspx">
+      <publishTime>08/20/2026 00:05:02</publishTime>
+    </File>
+    <File Include="BusinessUnitSetup.aspx">
+      <publishTime>08/20/2026 00:05:04</publishTime>
+    </File>
+    <File Include="CitySetup.aspx">
+      <publishTime>08/19/2026 23:49:36</publishTime>
+    </File>
+    <File Include="ContactMaster.aspx">
+      <publishTime>08/20/2026 00:28:10</publishTime>
+    </File>
+    <File Include="Controls/AppFooter.ascx">
+      <publishTime>08/24/2026 08:43:31</publishTime>
+    </File>
+    <File Include="Controls/AppHeader.ascx">
+      <publishTime>09/01/2026 15:06:05</publishTime>
+    </File>
+    <File Include="CostCenterSetup.aspx">
+      <publishTime>08/20/2026 00:05:10</publishTime>
+    </File>
+    <File Include="css/style.css">
+      <publishTime>08/20/2026 00:08:53</publishTime>
+    </File>
+    <File Include="CurrencySetup.aspx">
+      <publishTime>08/19/2026 23:50:43</publishTime>
+    </File>
+    <File Include="CustomerClassSetup.aspx">
+      <publishTime>08/20/2026 00:05:12</publishTime>
+    </File>
+    <File Include="CustomerGroupSetup.aspx">
+      <publishTime>08/20/2026 00:05:14</publishTime>
+    </File>
+    <File Include="CustomerMaster.aspx">
+      <publishTime>08/20/2026 00:18:40</publishTime>
+    </File>
+    <File Include="Dashboard.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="Default.aspx">
+      <publishTime>08/24/2026 08:43:31</publishTime>
+    </File>
+    <File Include="DepartmentSetup.aspx">
+      <publishTime>08/19/2026 23:53:49</publishTime>
+    </File>
+    <File Include="DesignationLevelSetup.aspx">
+      <publishTime>08/20/2026 00:05:15</publishTime>
+    </File>
+    <File Include="DivisionSetup.aspx">
+      <publishTime>08/24/2026 08:43:31</publishTime>
+    </File>
+    <File Include="DocumentTypeSetup.aspx">
+      <publishTime>08/20/2026 00:05:18</publishTime>
+    </File>
+    <File Include="EmployeeCard.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="EmployeeMaster.aspx">
+      <publishTime>09/01/2026 15:00:29</publishTime>
+    </File>
+    <File Include="EmployeeReport.aspx">
+      <publishTime>08/19/2026 23:56:18</publishTime>
+    </File>
+    <File Include="EmploymentStatusSetup.aspx">
+      <publishTime>08/20/2026 00:05:19</publishTime>
+    </File>
+    <File Include="EmploymentTypeSetup.aspx">
+      <publishTime>08/20/2026 00:05:23</publishTime>
+    </File>
+    <File Include="ExpenseCategorySetup.aspx">
+      <publishTime>08/20/2026 00:05:24</publishTime>
+    </File>
+    <File Include="ExpenseMaster.aspx">
+      <publishTime>08/20/2026 00:23:55</publishTime>
+    </File>
+    <File Include="ExtensionSetup.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="FBRStatusSetup.aspx">
+      <publishTime>08/20/2026 00:05:25</publishTime>
+    </File>
+    <File Include="GenderSetup.aspx">
+      <publishTime>08/24/2026 08:43:31</publishTime>
+    </File>
+    <File Include="Global.asax">
+      <publishTime>08/24/2026 08:43:31</publishTime>
+    </File>
+    <File Include="GoodsIssueMaster.aspx">
+      <publishTime>08/20/2026 00:24:50</publishTime>
+    </File>
+    <File Include="GoodsReceiptMaster.aspx">
+      <publishTime>08/20/2026 00:24:38</publishTime>
+    </File>
+    <File Include="GradeSetup.aspx">
+      <publishTime>08/20/2026 00:05:28</publishTime>
+    </File>
+    <File Include="Home.aspx">
+      <publishTime>08/31/2026 10:59:08</publishTime>
+    </File>
+    <File Include="HSCodeSetup.aspx">
+      <publishTime>08/20/2026 00:05:30</publishTime>
+    </File>
+    <File Include="ImageGallerySetup.aspx">
+      <publishTime>08/19/2026 23:56:16</publishTime>
+    </File>
+    <File Include="images/default-avatar.svg">
+      <publishTime>08/20/2026 00:04:30</publishTime>
+    </File>
+    <File Include="InitDatabase.aspx">
+      <publishTime>08/19/2026 23:48:39</publishTime>
+    </File>
+    <File Include="InventoryMaster.aspx">
+      <publishTime>08/19/2026 23:54:50</publishTime>
+    </File>
+    <File Include="InventoryReport.aspx">
+      <publishTime>08/19/2026 23:56:20</publishTime>
+    </File>
+    <File Include="InventoryTypeSetup.aspx">
+      <publishTime>08/20/2026 00:05:32</publishTime>
+    </File>
+    <File Include="InvoiceMaster.aspx">
+      <publishTime>08/20/2026 00:23:55</publishTime>
+    </File>
+    <File Include="ItemGroupSetup.aspx">
+      <publishTime>08/20/2026 00:05:35</publishTime>
+    </File>
+    <File Include="ItemRegisteredSetup.aspx">
+      <publishTime>08/20/2026 00:05:36</publishTime>
+    </File>
+    <File Include="JobSetup.aspx">
+      <publishTime>09/01/2026 15:00:29</publishTime>
+    </File>
+    <File Include="js/app.js">
+      <publishTime>09/01/2026 15:00:29</publishTime>
+    </File>
+    <File Include="js/confirm-delete.js">
+      <publishTime>08/20/2026 00:11:06</publishTime>
+    </File>
+    <File Include="js/dashboard.js">
+      <publishTime>08/23/2026 19:38:00</publishTime>
+    </File>
+    <File Include="js/employee-card.js">
+      <publishTime>08/20/2026 00:02:10</publishTime>
+    </File>
+    <File Include="js/expense.js">
+      <publishTime>08/20/2026 00:22:00</publishTime>
+    </File>
+    <File Include="js/field-validation.js">
+      <publishTime>08/20/2026 00:04:30</publishTime>
+    </File>
+    <File Include="js/invoice.js">
+      <publishTime>08/20/2026 00:02:50</publishTime>
+    </File>
+    <File Include="js/purchaseorder.js">
+      <publishTime>08/20/2026 00:03:09</publishTime>
+    </File>
+    <File Include="js/salesorder.js">
+      <publishTime>08/20/2026 00:03:09</publishTime>
+    </File>
+    <File Include="LanguageSetup.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="LeaveCategorySetup.aspx">
+      <publishTime>08/20/2026 00:05:37</publishTime>
+    </File>
+    <File Include="LeaveMaster.aspx">
+      <publishTime>08/20/2026 00:26:43</publishTime>
+    </File>
+    <File Include="LegalEntitySetup.aspx">
+      <publishTime>08/19/2026 23:50:50</publishTime>
+    </File>
+    <File Include="LmsDocumentSetup.aspx">
+      <publishTime>09/01/2026 15:05:31</publishTime>
+    </File>
+    <File Include="LmsLibrary.aspx">
+      <publishTime>09/01/2026 15:05:42</publishTime>
+    </File>
+    <File Include="LocationSetup.aspx">
+      <publishTime>08/20/2026 00:05:38</publishTime>
+    </File>
+    <File Include="Login.aspx">
+      <publishTime>08/24/2026 08:43:31</publishTime>
+    </File>
+    <File Include="LookupSetup.Master">
+      <publishTime>08/24/2026 08:43:31</publishTime>
+    </File>
+    <File Include="Memorandums.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="MemorandumSetup.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="MethodOfPaymentSetup.aspx">
+      <publishTime>08/20/2026 00:05:39</publishTime>
+    </File>
+    <File Include="ModeOfDeliverySetup.aspx">
+      <publishTime>08/20/2026 00:05:41</publishTime>
+    </File>
+    <File Include="MyDocuments.aspx">
+      <publishTime>09/01/2026 15:00:30</publishTime>
+    </File>
+    <File Include="NationalitySetup.aspx">
+      <publishTime>08/20/2026 00:05:42</publishTime>
+    </File>
+    <File Include="Notifications.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="NotificationSetup.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="PerformanceMaster.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="PositionHierarchy.aspx">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="PositionMaster.aspx">
+      <publishTime>08/20/2026 00:29:21</publishTime>
+    </File>
+    <File Include="ProductDivisionSetup.aspx">
+      <publishTime>08/20/2026 00:05:45</publishTime>
+    </File>
+    <File Include="ProductGroupSetup.aspx">
+      <publishTime>08/20/2026 00:05:47</publishTime>
+    </File>
+    <File Include="ProductMaster.aspx">
+      <publishTime>08/20/2026 00:22:10</publishTime>
+    </File>
+    <File Include="ProductNatureSetup.aspx">
+      <publishTime>08/20/2026 00:05:48</publishTime>
+    </File>
+    <File Include="ProductSalesGroupSetup.aspx">
+      <publishTime>08/20/2026 00:05:50</publishTime>
+    </File>
+    <File Include="ProductTeamSetup.aspx">
+      <publishTime>08/20/2026 00:05:51</publishTime>
+    </File>
+    <File Include="ProvinceSetup.aspx">
+      <publishTime>08/19/2026 23:50:12</publishTime>
+    </File>
+    <File Include="PurchaseOrderMaster.aspx">
+      <publishTime>08/20/2026 00:22:46</publishTime>
+    </File>
+    <File Include="QuickLinks.aspx">
+      <publishTime>08/19/2026 23:51:54</publishTime>
+    </File>
+    <File Include="RecruitmentMaster.aspx">
+      <publishTime>08/20/2026 00:30:39</publishTime>
+    </File>
+    <File Include="RegionSetup.aspx">
+      <publishTime>08/20/2026 00:05:52</publishTime>
+    </File>
+    <File Include="ReligionSetup.aspx">
+      <publishTime>08/20/2026 00:05:54</publishTime>
+    </File>
+    <File Include="ResetAdmin.aspx">
+      <publishTime>08/19/2026 23:48:41</publishTime>
+    </File>
+    <File Include="SalesCategorySetup.aspx">
+      <publishTime>08/20/2026 00:05:58</publishTime>
+    </File>
+    <File Include="SalesGroupSetup.aspx">
+      <publishTime>08/19/2026 23:51:29</publishTime>
+    </File>
+    <File Include="SalesOrderMaster.aspx">
+      <publishTime>08/20/2026 00:23:52</publishTime>
+    </File>
+    <File Include="SalesTeamSetup.aspx">
+      <publishTime>09/01/2026 15:00:29</publishTime>
+    </File>
+    <File Include="Setup.aspx">
+      <publishTime>08/19/2026 23:49:27</publishTime>
+    </File>
+    <File Include="Site.Master">
+      <publishTime>09/01/2026 15:00:29</publishTime>
+    </File>
+    <File Include="SkillSetup.aspx">
+      <publishTime>08/19/2026 23:55:57</publishTime>
+    </File>
+    <File Include="SoftwareLinkSetup.aspx">
+      <publishTime>08/19/2026 23:56:11</publishTime>
+    </File>
+    <File Include="TaskMaster.aspx">
+      <publishTime>08/20/2026 00:26:03</publishTime>
+    </File>
+    <File Include="TaxGroupSetup.aspx">
+      <publishTime>08/20/2026 00:06:00</publishTime>
+    </File>
+    <File Include="TermsOfPaymentSetup.aspx">
+      <publishTime>08/20/2026 00:06:02</publishTime>
+    </File>
+    <File Include="TitleSetup.aspx">
+      <publishTime>08/20/2026 00:06:03</publishTime>
+    </File>
+    <File Include="TrainingMaster.aspx">
+      <publishTime>09/01/2026 15:00:30</publishTime>
+    </File>
+    <File Include="UnitOfMeasureSetup.aspx">
+      <publishTime>08/20/2026 00:06:05</publishTime>
+    </File>
+    <File Include="UnitSetup.aspx">
+      <publishTime>08/20/2026 00:06:06</publishTime>
+    </File>
+    <File Include="UserProfile.aspx">
+      <publishTime>08/19/2026 23:51:36</publishTime>
+    </File>
+    <File Include="UserRightsSetup.aspx">
+      <publishTime>08/20/2026 00:27:13</publishTime>
+    </File>
+    <File Include="UserSetup.aspx">
+      <publishTime>08/19/2026 23:53:23</publishTime>
+    </File>
+    <File Include="VendorMaster.aspx">
+      <publishTime>08/20/2026 00:20:41</publishTime>
+    </File>
+    <File Include="Web.config">
+      <publishTime>08/31/2026 12:43:45</publishTime>
+    </File>
+    <File Include="WingSetup.aspx">
+      <publishTime>08/20/2026 00:06:08</publishTime>
+    </File>
+    <File Include="WorkArrangementSetup.aspx">
+      <publishTime>08/19/2026 23:51:18</publishTime>
+    </File>
+    <File Include="WorkerCategorySetup.aspx">
+      <publishTime>08/19/2026 23:51:33</publishTime>
+    </File>
+    <File Include="WorkerLocationSetup.aspx">
+      <publishTime>08/24/2026 14:43:29</publishTime>
+    </File>
+    <File Include="WorkforceSegmentSetup.aspx">
+      <publishTime>08/20/2026 00:06:11</publishTime>
+    </File>
+    <File Include="WorkLocationTypeSetup.aspx">
+      <publishTime>08/19/2026 23:51:23</publishTime>
+    </File>
+  </ItemGroup>
+</Project>
