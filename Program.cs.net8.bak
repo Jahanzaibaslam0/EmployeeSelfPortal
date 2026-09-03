@@ -1,0 +1,10 @@
+// LEGACY: ASP.NET Core / Razor host. Not used by Web Forms build.
+// The active entry point is Global.asax → StartupMigrations.
+// Original net8 Program.cs content removed from compile (see HRMS.csproj Compile Remove).
+// Restore from source control / Desktop HRMS if you need the Kestrel host again.
+namespace HRMS.Legacy
+{
+    internal static class ProgramDisabled
+    {
+    }
+}

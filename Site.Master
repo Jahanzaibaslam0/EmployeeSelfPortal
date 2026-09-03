@@ -1,0 +1,25 @@
+<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site.Master.cs" Inherits="HRMS.SiteMaster" %>
+<%@ Register Src="~/Controls/AppHeader.ascx" TagPrefix="hrms" TagName="AppHeader" %>
+<%@ Register Src="~/Controls/AppFooter.ascx" TagPrefix="hrms" TagName="AppFooter" %>
+<!DOCTYPE html>
+<html lang="en">
+<head runat="server">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS - <asp:Literal ID="litTitle" runat="server" /></title>
+    <link rel="stylesheet" href="<%= ResolveUrl("~/css/style.css") %>?v=10" />
+    <asp:ContentPlaceHolder ID="head" runat="server" />
+</head>
+<body>
+<form id="form1" runat="server">
+    <hrms:AppHeader ID="appHeader" runat="server" />
+    <main class="container">
+        <asp:ContentPlaceHolder ID="MainContent" runat="server" />
+    </main>
+    <hrms:AppFooter ID="appFooter" runat="server" />
+</form>
+<script src="<%= ResolveUrl("~/js/confirm-delete.js") %>"></script>
+<asp:ContentPlaceHolder ID="scripts" runat="server" />
+<script src="<%= ResolveUrl("~/js/app.js") %>?v=2026082716"></script>
+</body>
+</html>

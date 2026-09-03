@@ -1,0 +1,83 @@
+<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="LookupSetup.Master.cs" Inherits="HRMS.LookupSetupMaster" %>
+<!DOCTYPE html>
+<html lang="en">
+<head runat="server">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS - <%= PageTitle %></title>
+    <link rel="stylesheet" href="/css/style.css?v=9" />
+    <asp:ContentPlaceHolder ID="head" runat="server" />
+</head>
+<body>
+<form id="form1" runat="server">
+<%@ Register Src="~/Controls/AppHeader.ascx" TagPrefix="hrms" TagName="AppHeader" %>
+<hrms:AppHeader runat="server" PageTitleText="<%# PageTitle %>" />
+<main class="container">
+<% if (!string.IsNullOrEmpty(AlertMessage)) { %>
+    <div class="alert alert-<%= AlertType %>"><%= AlertMessage %></div>
+<% } %>
+<div class="card">
+    <div class="card-header"><h2><%= Input.Id > 0 ? "Edit " + ItemLabel : "Add " + ItemLabel %></h2></div>
+    <div class="card-body">
+        <input type="hidden" name="__handler" value="Save" />
+        <input type="hidden" name="itemId" id="itemId" value="<%= Input.Id %>" />
+        <div class="form-grid">
+            <div class="form-group">
+                <label><%= ItemLabel %> <span class="required">*</span></label>
+                <input type="text" name="itemName" class="form-control" value="<%= Input.Name %>" maxlength="100" />
+            </div>
+            <% if (ShowAlias) { %>
+            <div class="form-group">
+                <label><%= AliasLabel %></label>
+                <input type="text" name="aliasName" class="form-control" value="<%= Input.AliasName %>" maxlength="<%= AliasMaxLength %>" />
+            </div>
+            <% } %>
+            <div class="form-group">
+                <label>Status</label>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="isActive" value="true" <%= Input.IsActive ? "checked=\"checked\"" : "" %> /> Active
+                </label>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer">
+        <button type="submit" class="btn btn-primary"><%= Input.Id > 0 ? "Update " + ItemLabel : "Save " + ItemLabel %></button>
+        <a href="<%= PagePath %>.aspx" class="btn btn-secondary">Clear</a>
+    </div>
+</div>
+<div class="card mt-4">
+    <div class="card-header"><h2><%= ItemLabel %> List</h2></div>
+    <div class="card-body table-responsive">
+        <table class="data-table">
+            <thead class="grid-header">
+                <tr><th><%= ItemLabel %></th><% if (ShowAlias) { %><th><%= AliasLabel %></th><% } %><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+            <% if (Records.Count == 0) { %>
+                <tr class="empty-row"><td colspan="4">No records found.</td></tr>
+            <% } else { foreach (var item in Records) { %>
+                <tr>
+                    <td><%= item.Name %></td>
+                    <% if (ShowAlias) { %><td><%= item.AliasName %></td><% } %>
+                    <td><span class="badge <%= item.IsActive ? "badge-success" : "badge-danger" %>"><%= item.IsActive ? "Active" : "Inactive" %></span></td>
+                    <td class="actions-col">
+                        <a class="btn-icon btn-edit" href="<%= PagePath %>.aspx?editId=<%= item.Id %>">Edit</a>
+                        <button type="submit" name="__handler" value="Delete" formaction="<%= PagePath %>.aspx" formmethod="post"
+                                onclick="document.getElementById('deleteIdField').value='<%= item.Id %>';" class="btn-icon btn-delete">X</button>
+                    </td>
+                </tr>
+            <% } } %>
+            </tbody>
+        </table>
+        <input type="hidden" name="deleteId" id="deleteIdField" value="0" />
+    </div>
+</div>
+</main>
+<%@ Register Src="~/Controls/AppFooter.ascx" TagPrefix="hrms" TagName="AppFooter" %>
+<hrms:AppFooter runat="server" />
+</form>
+<script src="/js/app.js?v=2026082202"></script>
+<script src="/js/confirm-delete.js"></script>
+<asp:ContentPlaceHolder ID="scripts" runat="server" />
+</body>
+</html>
