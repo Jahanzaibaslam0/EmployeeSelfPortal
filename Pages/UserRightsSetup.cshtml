@@ -1,0 +1,299 @@
+@page
+@model HRMS.Pages.UserRightsSetupModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS - @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .rights-table th { text-align: center; }
+        .rights-table td.perm-col { text-align: center; }
+        .rights-table input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+        .cat-row td {
+            background: #f3f4f6;
+            font-weight: 700;
+            font-size: .8rem;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #374151;
+        }
+        .admin-notice {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-radius: 6px;
+            padding: .75rem 1rem;
+            color: #92400e;
+            margin-bottom: 1rem;
+        }
+        .user-picker { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+        .user-picker .form-group { margin: 0; min-width: 280px; }
+        .scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @@media (max-width: 900px) { .scope-grid { grid-template-columns: 1fr; } }
+        .scope-list { max-height: 220px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: .5rem; background: #fff; }
+        .scope-list label { display: block; padding: .2rem 0; font-size: .88rem; }
+        .scope-hint { font-size: .82rem; color: #6b7280; margin-top: .35rem; }
+    </style>
+</head>
+<body>
+    @await Html.PartialAsync("_AppHeader", Model.PageTitle)
+
+    <main class="container">
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        <div class="card">
+            <div class="card-header"><h2>Select User</h2></div>
+            <div class="card-body user-picker">
+                <div class="form-group">
+                    <label>User</label>
+                    <select id="ddlUser" class="form-control" onchange="goUser(this.value)">
+                        <option value="">-- Select User --</option>
+                        @foreach (var u in Model.Users)
+                        {
+                            if (Model.SelectedUserId == u.UserID)
+                            {
+                                <option value="@u.UserID" selected>@u.FullName (@u.Username)</option>
+                            }
+                            else
+                            {
+                                <option value="@u.UserID">@u.FullName (@u.Username)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <a href="/UserSetup" class="btn btn-secondary">+ Add New User</a>
+            </div>
+        </div>
+
+        @if (Model.SelectedUserId > 0)
+        {
+            @if (Model.SelectedIsAdmin)
+            {
+                <div class="admin-notice">
+                    <strong>@Model.SelectedFullName</strong> is an <strong>Administrator</strong> with full access to all forms and all data. Settings below do not apply to admins.
+                </div>
+            }
+
+            <form method="post" action="/UserRightsSetup?handler=Save" id="rightsForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="userId" value="@Model.SelectedUserId" />
+                <input type="hidden" name="permissionsJson" id="permissionsJson" />
+                <input type="hidden" name="scopeJson" id="scopeJson" />
+
+                @if (!Model.SelectedIsAdmin)
+                {
+                <div class="card mt-4">
+                    <div class="card-header"><h2>Data Access Scope — @Model.SelectedFullName</h2></div>
+                    <div class="card-body">
+                        <p class="scope-hint" style="margin-top:0;">
+                            Controls which employee-linked records the user can view and manage (Leave, Expense, Employee, Dashboard, etc.).
+                            Form rights above still control which screens are available.
+                        </p>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Scope Mode</label>
+                                <select id="scopeMode" class="form-control">
+                                    <option value="OwnOnly" selected="@(Model.DataScope.Mode == HRMS.Services.DataScopeMode.OwnOnly)">Own record only (default)</option>
+                                    <option value="Restricted" selected="@(Model.DataScope.Mode == HRMS.Services.DataScopeMode.Restricted)">Restricted — assigned departments / locations</option>
+                                    <option value="All" selected="@(Model.DataScope.Mode == HRMS.Services.DataScopeMode.All)">All employee data</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <label style="display:flex; align-items:center; gap:.5rem; font-weight:normal;">
+                                    <input type="checkbox" id="incUnassignedDept" @(Model.DataScope.IncludeUnassignedDepartment ? "checked" : "") />
+                                    Include employees with no department
+                                </label>
+                                <label style="display:flex; align-items:center; gap:.5rem; font-weight:normal;">
+                                    <input type="checkbox" id="incUnassignedLoc" @(Model.DataScope.IncludeUnassignedLocation ? "checked" : "") />
+                                    Include employees with no location
+                                </label>
+                            </div>
+                        </div>
+                        <div class="scope-grid mt-4" id="restrictedScopePanel">
+                            <div>
+                                <label><strong>Allowed Departments</strong></label>
+                                <div class="scope-hint">When selected with locations, both must match (combined security).</div>
+                                <div class="scope-list" id="deptList">
+                                    @foreach (var d in Model.Departments)
+                                    {
+                                        var chk = Model.DataScope.DepartmentIds.Contains(d.Id) ? "checked" : "";
+                                        <label><input type="checkbox" class="scope-dept" value="@d.Id" @chk /> @d.Name</label>
+                                    }
+                                </div>
+                            </div>
+                            <div>
+                                <label><strong>Allowed Locations</strong></label>
+                                <div class="scope-hint">Leave empty to not filter by location.</div>
+                                <div class="scope-list" id="locList">
+                                    @foreach (var l in Model.Locations)
+                                    {
+                                        var chk = Model.DataScope.LocationIds.Contains(l.Id) ? "checked" : "";
+                                        <label><input type="checkbox" class="scope-loc" value="@l.Id" @chk /> @l.Name</label>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                }
+
+                <div class="card mt-4">
+                    <div class="card-header space-between">
+                        <h2>Form Rights — @Model.SelectedFullName</h2>
+                        <div>
+                            <button type="button" class="btn btn-secondary" onclick="checkAll('read', true)">All Read</button>
+                            <button type="button" class="btn btn-secondary" onclick="checkAll('write', true)">All Write</button>
+                            <button type="button" class="btn btn-secondary" onclick="checkAll('delete', true)">All Delete</button>
+                            <button type="button" class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+                        </div>
+                    </div>
+
+                    <div class="card-body table-responsive">
+                        <table class="data-table rights-table" id="rightsTable">
+                            <thead class="grid-header">
+                                <tr>
+                                    <th style="text-align:left;">Form / Screen</th>
+                                    <th style="width:72px;">View</th>
+                                    <th style="width:72px;">Add/Edit</th>
+                                    <th style="width:72px;">Delete</th>
+                                    <th style="width:72px;">Approve</th>
+                                    <th style="width:72px;">Export</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    string? lastCat = null;
+                                    foreach (var p in Model.Permissions)
+                                    {
+                                        if (p.Category != lastCat)
+                                        {
+                                            lastCat = p.Category;
+                                            <tr class="cat-row">
+                                                <td colspan="6">@p.Category</td>
+                                            </tr>
+                                        }
+                                        <tr data-form="@p.FormKey">
+                                            <td>@p.FormName</td>
+                                            <td class="perm-col"><input type="checkbox" class="perm-read" @(p.CanRead ? "checked" : "") /></td>
+                                            <td class="perm-col"><input type="checkbox" class="perm-write" @(p.CanWrite ? "checked" : "") /></td>
+                                            <td class="perm-col"><input type="checkbox" class="perm-delete" @(p.CanDelete ? "checked" : "") /></td>
+                                            <td class="perm-col"><input type="checkbox" class="perm-approve" @(p.CanApprove ? "checked" : "") /></td>
+                                            <td class="perm-col"><input type="checkbox" class="perm-export" @(p.CanExport ? "checked" : "") /></td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-primary" onclick="return prepareRightsPayload();">
+                            Save User Rights &amp; Data Scope
+                        </button>
+                        <a href="/UserSetup" class="btn btn-secondary">Back to Users</a>
+                    </div>
+                </div>
+            </form>
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    <script>
+        function goUser(id) {
+            if (id) window.location.href = '/UserRightsSetup?userId=' + id;
+        }
+
+        function toggleRestrictedPanel() {
+            var mode = document.getElementById('scopeMode');
+            var panel = document.getElementById('restrictedScopePanel');
+            if (!mode || !panel) return;
+            panel.style.display = mode.value === 'Restricted' ? '' : 'none';
+        }
+
+        document.getElementById('scopeMode')?.addEventListener('change', toggleRestrictedPanel);
+        toggleRestrictedPanel();
+
+        function checkAll(type, val) {
+            document.querySelectorAll('.perm-' + type).forEach(function (cb) { cb.checked = val; });
+            if (type === 'write' && val)
+                document.querySelectorAll('.perm-read').forEach(function (cb) { cb.checked = true; });
+            if (type === 'delete' && val)
+                document.querySelectorAll('.perm-read, .perm-write').forEach(function (cb) { cb.checked = true; });
+            if (type === 'approve' && val)
+                document.querySelectorAll('.perm-read').forEach(function (cb) { cb.checked = true; });
+            if (type === 'export' && val)
+                document.querySelectorAll('.perm-read').forEach(function (cb) { cb.checked = true; });
+        }
+
+        function clearAll() {
+            document.querySelectorAll('.perm-read, .perm-write, .perm-delete, .perm-approve, .perm-export')
+                .forEach(function (cb) { cb.checked = false; });
+        }
+
+        document.querySelectorAll('.perm-write').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (cb.checked) cb.closest('tr').querySelector('.perm-read').checked = true;
+            });
+        });
+        document.querySelectorAll('.perm-delete, .perm-approve, .perm-export').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (cb.checked) cb.closest('tr').querySelector('.perm-read').checked = true;
+            });
+        });
+        document.querySelectorAll('.perm-read').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (!cb.checked) {
+                    var row = cb.closest('tr');
+                    row.querySelector('.perm-write').checked = false;
+                    row.querySelector('.perm-delete').checked = false;
+                    row.querySelector('.perm-approve').checked = false;
+                    row.querySelector('.perm-export').checked = false;
+                }
+            });
+        });
+        document.querySelectorAll('.perm-write').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (!cb.checked) cb.closest('tr').querySelector('.perm-delete').checked = false;
+            });
+        });
+
+        function prepareRightsPayload() {
+            var rows = [];
+            document.querySelectorAll('#rightsTable tbody tr[data-form]').forEach(function (tr) {
+                rows.push({
+                    formKey:    tr.getAttribute('data-form'),
+                    canRead:    tr.querySelector('.perm-read').checked,
+                    canWrite:   tr.querySelector('.perm-write').checked,
+                    canDelete:  tr.querySelector('.perm-delete').checked,
+                    canApprove: tr.querySelector('.perm-approve').checked,
+                    canExport:  tr.querySelector('.perm-export').checked
+                });
+            });
+            document.getElementById('permissionsJson').value = JSON.stringify(rows);
+
+            var scopeEl = document.getElementById('scopeMode');
+            if (scopeEl) {
+                var deptIds = [];
+                document.querySelectorAll('.scope-dept:checked').forEach(function (cb) { deptIds.push(parseInt(cb.value, 10)); });
+                var locIds = [];
+                document.querySelectorAll('.scope-loc:checked').forEach(function (cb) { locIds.push(parseInt(cb.value, 10)); });
+                document.getElementById('scopeJson').value = JSON.stringify({
+                    mode: scopeEl.value,
+                    departmentIds: deptIds,
+                    locationIds: locIds,
+                    includeUnassignedDepartment: document.getElementById('incUnassignedDept')?.checked || false,
+                    includeUnassignedLocation: document.getElementById('incUnassignedLoc')?.checked || false
+                });
+            }
+            return true;
+        }
+    </script>
+</body>
+</html>

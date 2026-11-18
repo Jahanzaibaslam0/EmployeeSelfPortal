@@ -1,0 +1,27 @@
+@page
+@model HRMS.Pages.UserProfileModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS - @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body>
+    @await Html.PartialAsync("_AppHeader", Model.PageTitle)
+    <main class="container">
+        <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        <div class="card">
+            <div class="card-body" style="text-align:center; padding:2rem;">
+                <p style="color:var(--text-muted); margin-bottom:1rem;">
+                    Ask your system administrator to link your user account with the correct employee record in Employee Master.
+                </p>
+                <a href="/Home" class="btn btn-secondary">Back to Home</a>
+            </div>
+        </div>
+    </main>
+    @await Html.PartialAsync("_AppFooter")
+</body>
+</html>

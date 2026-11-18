@@ -1,0 +1,511 @@
+@page
+@model HRMS.Pages.TaskMasterModel
+@{
+    Layout = null;
+    var pageTitle = Model.ShowForm
+        ? (Model.EditMode ? $"Task {Model.Input.TaskCode}" : "New Task")
+        : "Task Management";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @pageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .cust-list-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+        .cust-list-header .right-controls { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+        .form-breadcrumb { display:flex; align-items:center; gap:.75rem; margin-bottom:1rem; padding:.5rem .75rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .form-breadcrumb .crumb-sep { color:#9ca3af; }
+        .form-breadcrumb .crumb-current { font-weight:600; color:#111827; }
+        .readonly-field { background:#f3f4f6; color:#374151; cursor:not-allowed; }
+        .stat-chips { display:flex; gap:.5rem; margin-bottom:.75rem; flex-wrap:wrap; }
+        .stat-chip { display:inline-flex; align-items:center; padding:4px 12px; border-radius:20px; font-size:.78rem; font-weight:600; text-decoration:none; border:1px solid transparent; }
+        .stat-chip:hover { opacity:.9; }
+        .chip-total { background:rgba(46,49,146,.12); color:var(--gb-blue); }
+        .chip-open { background:#dbeafe; color:#1e40af; }
+        .chip-progress { background:#fef3c7; color:#92400e; }
+        .chip-done { background:#dcfce7; color:#166534; }
+        .chip-overdue { background:rgba(227,30,36,.12); color:var(--gb-red-dark); }
+        .chip-active-filter { outline:2px solid var(--gb-blue); }
+        .filter-bar { display:flex; flex-wrap:wrap; gap:.6rem; align-items:flex-end; margin-bottom:1rem; padding:.85rem 1rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; }
+        .filter-bar .form-group { margin:0; min-width:140px; }
+        .filter-bar label { font-size:.72rem; font-weight:600; color:#6b7280; display:block; margin-bottom:.25rem; }
+        .ref-tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1rem; }
+        .ref-tab { padding:6px 14px; border-radius:6px; font-size:.8rem; font-weight:600; text-decoration:none; background:#f3f4f6; color:#374151; border:1px solid #e5e7eb; }
+        .ref-tab:hover { background:#e5e7eb; }
+        .ref-tab.active { background:var(--gb-blue); color:#fff; border-color:var(--gb-blue); }
+        .badge-priority-Low { background:#e5e7eb; color:#374151; }
+        .badge-priority-Medium { background:#dbeafe; color:#1e40af; }
+        .badge-priority-High { background:#ffedd5; color:#c2410c; }
+        .badge-priority-Urgent { background:#fee2e2; color:#991b1b; }
+        .badge-status-Open { background:#dbeafe; color:#1e40af; }
+        .badge-status-InProgress { background:#fef3c7; color:#92400e; }
+        .badge-status-OnHold { background:#f3e8ff; color:#6b21a8; }
+        .badge-status-Completed { background:#dcfce7; color:#166534; }
+        .badge-status-Cancelled { background:#fee2e2; color:#991b1b; }
+        .ref-panel { display:none; }
+        .ref-panel.visible { display:block; }
+        .history-list { list-style:none; padding:0; margin:0; }
+        .history-list li { padding:.65rem .75rem; border-bottom:1px solid #f3f4f6; font-size:.85rem; }
+        .history-list li:last-child { border-bottom:none; }
+        .history-meta { color:#6b7280; font-size:.75rem; margin-top:.2rem; }
+        .overdue-row td { background:#fef2f2 !important; }
+        .action-btns { display:flex; gap:.35rem; flex-wrap:wrap; }
+    </style>
+</head>
+<body>
+
+@await Html.PartialAsync("_AppHeader", pageTitle)
+
+<main class="container">
+
+    @if (!string.IsNullOrEmpty(Model.AlertMessage))
+    {
+        <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+    }
+
+    @if (!Model.ShowForm)
+    {
+        <div class="stat-chips">
+            <a class="stat-chip chip-total" href="/TaskMaster">All: @(Model.CountOpen + Model.CountInProgress + Model.CountCompleted)</a>
+            <a class="stat-chip chip-open @(Model.FilterStatus == "Open" ? "chip-active-filter" : "")" href="/TaskMaster?status=Open">Open: @Model.CountOpen</a>
+            <a class="stat-chip chip-progress @(Model.FilterStatus == "In Progress" ? "chip-active-filter" : "")" href="/TaskMaster?status=In%20Progress">In Progress: @Model.CountInProgress</a>
+            <a class="stat-chip chip-done @(Model.FilterStatus == "Completed" ? "chip-active-filter" : "")" href="/TaskMaster?status=Completed">Completed: @Model.CountCompleted</a>
+            <span class="stat-chip chip-overdue">Overdue: @Model.CountOverdue</span>
+        </div>
+
+        <div class="ref-tabs">
+            <a class="ref-tab @(string.IsNullOrEmpty(Model.FilterReferenceType) ? "active" : "")" href="/TaskMaster">All References</a>
+            @foreach (var rt in new[] { "Employee", "Customer", "Vendor", "Sales", "Purchase" })
+            {
+                <a class="ref-tab @(Model.FilterReferenceType == rt ? "active" : "")"
+                   href="/TaskMaster?refType=@Uri.EscapeDataString(rt)">@rt</a>
+            }
+            <a class="ref-tab @(Model.FilterReferenceType == "None" ? "active" : "")" href="/TaskMaster?refType=None">General</a>
+        </div>
+
+        <form method="get" class="filter-bar" action="/TaskMaster">
+            @if (!string.IsNullOrEmpty(Model.FilterReferenceType))
+            {
+                <input type="hidden" name="refType" value="@Model.FilterReferenceType" />
+            }
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="">All statuses</option>
+                    @foreach (var s in Model.StatusOptionList)
+                    {
+                        if (Model.FilterStatus == s)
+                        {
+                            <option value="@s" selected>@s</option>
+                        }
+                        else
+                        {
+                            <option value="@s">@s</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-group" style="min-width:200px;">
+                <label>Assigned To</label>
+                <select name="assignedTo" class="form-control">
+                    <option value="0">All assignees</option>
+                    @foreach (var e in Model.Employees)
+                    {
+                        if (Model.FilterAssignedTo == e.Id)
+                        {
+                            <option value="@e.Id" selected>@e.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@e.Id">@e.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="form-group" style="min-width:220px; flex:1;">
+                <label>Search</label>
+                <input type="text" name="q" class="form-control" value="@Model.FilterSearch"
+                       placeholder="Code, title, customer, vendor, order…" />
+            </div>
+            <button type="submit" class="btn btn-secondary">Filter</button>
+            <a href="/TaskMaster" class="btn btn-secondary">Clear</a>
+        </form>
+
+        <div class="card">
+            <div class="card-header cust-list-header">
+                <h2>Tasks</h2>
+                <div class="right-controls">
+                    <a href="/TaskMaster?newTask=true@(string.IsNullOrEmpty(Model.FilterReferenceType) ? "" : "&refType=" + Uri.EscapeDataString(Model.FilterReferenceType))"
+                       class="btn btn-primary">+ New Task</a>
+                </div>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="data-table" id="taskTable">
+                    <thead class="grid-header">
+                        <tr>
+                            <th>#</th>
+                            <th>Code</th>
+                            <th>Title</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Due</th>
+                            <th>Assigned To</th>
+                            <th>Reference</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Tasks.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="9" style="text-align:center; padding:2rem; color:#6b7280;">
+                                    No tasks found.
+                                    <br />
+                                    <a href="/TaskMaster?newTask=true" class="btn btn-primary" style="margin-top:.75rem;">+ Create First Task</a>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            int rowNum = 0;
+                            foreach (var t in Model.Tasks)
+                            {
+                                rowNum++;
+                                var overdue = t.DueDate.HasValue
+                                    && t.DueDate.Value.Date < DateTime.Today
+                                    && t.TaskStatus is "Open" or "In Progress" or "On Hold";
+                                var statusCss = "badge-status-" + t.TaskStatus.Replace(" ", "");
+                                <tr class="@(rowNum % 2 == 0 ? "grid-alt-row" : "grid-row") @(overdue ? "overdue-row" : "")">
+                                    <td>@rowNum</td>
+                                    <td><code style="font-size:.75rem;background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;">@t.TaskCode</code></td>
+                                    <td><strong>@t.Title</strong></td>
+                                    <td><span class="badge badge-priority-@t.Priority">@t.Priority</span></td>
+                                    <td><span class="badge @statusCss">@t.TaskStatus</span></td>
+                                    <td>
+                                        @(t.DueDate?.ToString("dd-MMM-yyyy") ?? "—")
+                                        @if (overdue)
+                                        {
+                                            <span class="badge badge-danger" style="margin-left:.25rem;">Overdue</span>
+                                        }
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(t.AssignedToName) ? "—" : t.AssignedToName)</td>
+                                    <td>
+                                        <div style="font-size:.72rem;color:#6b7280;">@t.ReferenceType</div>
+                                        <div>@t.ReferenceDisplay</div>
+                                    </td>
+                                    <td style="white-space:nowrap;">
+                                        <div class="action-btns">
+                                            <a href="/TaskMaster?editId=@t.TaskID" class="btn btn-secondary" style="padding:3px 12px; font-size:.8rem;">Open</a>
+                                            @if (t.TaskStatus is "Open" or "In Progress" or "On Hold")
+                                            {
+                                                <form method="post" asp-page-handler="Complete" style="display:inline"
+                                                      onsubmit="return confirm('Mark this task as completed?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="completeId" value="@t.TaskID" />
+                                                    <button type="submit" class="btn btn-primary" style="padding:3px 10px; font-size:.8rem;">Complete</button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="form-breadcrumb">
+            <a href="/TaskMaster">Task Management</a>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-current">@(Model.EditMode ? Model.Input.TaskCode : "New Task")</span>
+        </div>
+
+        @if (Model.EditMode)
+        {
+            <div class="action-btns" style="margin-bottom:1rem;">
+                @if (!Model.IsStatusLocked)
+                {
+                    <form method="post" asp-page-handler="Complete" style="display:inline"
+                          onsubmit="return confirm('Mark completed?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="completeId" value="@Model.Input.TaskID" />
+                        <button type="submit" class="btn btn-primary">Complete</button>
+                    </form>
+                    <form method="post" asp-page-handler="Cancel" style="display:inline"
+                          onsubmit="return confirm('Cancel this task?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="cancelId" value="@Model.Input.TaskID" />
+                        <button type="submit" class="btn btn-danger">Cancel Task</button>
+                    </form>
+                    <form method="post" asp-page-handler="Delete" style="display:inline"
+                          onsubmit="return confirm('Remove this task?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="deleteId" value="@Model.Input.TaskID" />
+                        <button type="submit" class="btn btn-danger">Remove</button>
+                    </form>
+                }
+                else
+                {
+                    <form method="post" asp-page-handler="Reopen" style="display:inline"
+                          onsubmit="return confirm('Reopen this task?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reopenId" value="@Model.Input.TaskID" />
+                        <button type="submit" class="btn btn-secondary">Reopen</button>
+                    </form>
+                }
+            </div>
+        }
+
+        <form method="post" id="taskForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="TaskID" value="@Model.Input.TaskID" />
+            <input type="hidden" name="EditMode" value="@Model.EditMode.ToString()" />
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>@(Model.EditMode ? "Edit Task" : "New Task")</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-section-title">Task Details</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Task Code</label>
+                            <input type="text" class="form-control readonly-field" value="@Model.Input.TaskCode" readonly />
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            @if (Model.IsStatusLocked)
+                            {
+                                <input type="hidden" name="TaskStatus" value="@Model.Input.TaskStatus" />
+                                <input type="text" class="form-control readonly-field" value="@Model.Input.TaskStatus" readonly />
+                            }
+                            else
+                            {
+                                <select name="TaskStatus" class="form-control" @(Model.IsStatusLocked ? "disabled" : null)>
+                                    @foreach (var s in Model.StatusOptionList.Where(x => x is not ("Completed" or "Cancelled") || x == Model.Input.TaskStatus))
+                                    {
+                                        if (Model.Input.TaskStatus == s)
+                                        {
+                                            <option value="@s" selected>@s</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@s">@s</option>
+                                        }
+                                    }
+                                </select>
+                            }
+                        </div>
+                        <div class="form-group" style="grid-column:1 / -1;">
+                            <label>Title <span style="color:var(--gb-red);">*</span></label>
+                            <input type="text" name="Title" class="form-control" maxlength="200"
+                                   value="@Model.Input.Title" required @(Model.IsStatusLocked ? "readonly" : null) />
+                        </div>
+                        <div class="form-group" style="grid-column:1 / -1;">
+                            <label>Description</label>
+                            <textarea name="Description" class="form-control" rows="3"
+                                      @(Model.IsStatusLocked ? "readonly" : null)>@Model.Input.Description</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Priority</label>
+                            <select name="Priority" class="form-control" @(Model.IsStatusLocked ? "disabled" : null)>
+                                @foreach (var p in Model.PriorityOptionList)
+                                {
+                                    if (Model.Input.Priority == p)
+                                    {
+                                        <option value="@p" selected>@p</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@p">@p</option>
+                                    }
+                                }
+                            </select>
+                            @if (Model.IsStatusLocked)
+                            {
+                                <input type="hidden" name="Priority" value="@Model.Input.Priority" />
+                            }
+                        </div>
+                        <div class="form-group">
+                            <label>Due Date</label>
+                            <input type="date" name="DueDate" class="form-control" value="@Model.Input.DueDate"
+                                   @(Model.IsStatusLocked ? "readonly" : null) />
+                        </div>
+                        <div class="form-group" style="grid-column:1 / -1;">
+                            <label>Assign To Employee</label>
+                            <select name="AssignedToEmployeeID" class="form-control" @(Model.IsStatusLocked ? "disabled" : null)>
+                                <option value="0">— Unassigned —</option>
+                                @foreach (var e in Model.Employees)
+                                {
+                                    <option value="@e.Id" selected="@(Model.Input.AssignedToEmployeeID == e.Id)">@e.Name</option>
+                                }
+                            </select>
+                            @if (Model.IsStatusLocked)
+                            {
+                                <input type="hidden" name="AssignedToEmployeeID" value="@Model.Input.AssignedToEmployeeID" />
+                            }
+                        </div>
+                    </div>
+
+                    <div class="form-section-title" style="margin-top:1.25rem;">Linked Reference</div>
+                    <p style="font-size:.85rem;color:#6b7280;margin:.25rem 0 1rem;">
+                        Link this task to an Employee, Customer, Vendor, Sales Order, or Purchase Order for tracking.
+                    </p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Reference Type</label>
+                            <select name="ReferenceType" id="ReferenceType" class="form-control"
+                                    onchange="toggleRefPanels()" @(Model.IsStatusLocked ? "disabled" : null)>
+                                @foreach (var rt in Model.ReferenceTypeOptionList)
+                                {
+                                    var label = rt == "None" ? "General (no link)" : rt == "Sales" ? "Sales Order" : rt == "Purchase" ? "Purchase Order" : rt;
+                                    if (Model.Input.ReferenceType == rt)
+                                    {
+                                        <option value="@rt" selected>@label</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@rt">@label</option>
+                                    }
+                                }
+                            </select>
+                            @if (Model.IsStatusLocked)
+                            {
+                                <input type="hidden" name="ReferenceType" value="@Model.Input.ReferenceType" />
+                            }
+                        </div>
+                    </div>
+
+                    <div id="ref-Employee" class="ref-panel form-group" style="margin-top:.75rem;">
+                        <label>Employee</label>
+                        <select name="ReferenceEmployeeID" class="form-control" @(Model.IsStatusLocked ? "disabled" : null)>
+                            <option value="0">— Select employee —</option>
+                            @foreach (var e in Model.Employees)
+                            {
+                                <option value="@e.Id" selected="@(Model.Input.ReferenceEmployeeID == e.Id)">@e.Name</option>
+                            }
+                        </select>
+                        @if (Model.IsStatusLocked)
+                        {
+                            <input type="hidden" name="ReferenceEmployeeID" value="@Model.Input.ReferenceEmployeeID" />
+                        }
+                    </div>
+                    <div id="ref-Customer" class="ref-panel form-group" style="margin-top:.75rem;">
+                        <label>Customer</label>
+                        <select name="ReferenceCustomerID" class="form-control" @(Model.IsStatusLocked ? "disabled" : null)>
+                            <option value="0">— Select customer —</option>
+                            @foreach (var c in Model.Customers)
+                            {
+                                <option value="@c.Id" selected="@(Model.Input.ReferenceCustomerID == c.Id)">@c.Name</option>
+                            }
+                        </select>
+                        @if (Model.IsStatusLocked)
+                        {
+                            <input type="hidden" name="ReferenceCustomerID" value="@Model.Input.ReferenceCustomerID" />
+                        }
+                    </div>
+                    <div id="ref-Vendor" class="ref-panel form-group" style="margin-top:.75rem;">
+                        <label>Vendor</label>
+                        <select name="ReferenceVendorID" class="form-control" @(Model.IsStatusLocked ? "disabled" : null)>
+                            <option value="0">— Select vendor —</option>
+                            @foreach (var v in Model.Vendors)
+                            {
+                                <option value="@v.Id" selected="@(Model.Input.ReferenceVendorID == v.Id)">@v.Name</option>
+                            }
+                        </select>
+                        @if (Model.IsStatusLocked)
+                        {
+                            <input type="hidden" name="ReferenceVendorID" value="@Model.Input.ReferenceVendorID" />
+                        }
+                    </div>
+                    <div id="ref-Sales" class="ref-panel form-group" style="margin-top:.75rem;">
+                        <label>Sales Order</label>
+                        <select name="ReferenceSalesOrderID" class="form-control" @(Model.IsStatusLocked ? "disabled" : null)>
+                            <option value="0">— Select sales order —</option>
+                            @foreach (var s in Model.SalesOrders)
+                            {
+                                <option value="@s.Id" selected="@(Model.Input.ReferenceSalesOrderID == s.Id)">@s.Name</option>
+                            }
+                        </select>
+                        @if (Model.IsStatusLocked)
+                        {
+                            <input type="hidden" name="ReferenceSalesOrderID" value="@Model.Input.ReferenceSalesOrderID" />
+                        }
+                    </div>
+                    <div id="ref-Purchase" class="ref-panel form-group" style="margin-top:.75rem;">
+                        <label>Purchase Order</label>
+                        <select name="ReferencePurchaseOrderID" class="form-control" @(Model.IsStatusLocked ? "disabled" : null)>
+                            <option value="0">— Select purchase order —</option>
+                            @foreach (var p in Model.PurchaseOrders)
+                            {
+                                <option value="@p.Id" selected="@(Model.Input.ReferencePurchaseOrderID == p.Id)">@p.Name</option>
+                            }
+                        </select>
+                        @if (Model.IsStatusLocked)
+                        {
+                            <input type="hidden" name="ReferencePurchaseOrderID" value="@Model.Input.ReferencePurchaseOrderID" />
+                        }
+                    </div>
+
+                </div>
+                <div class="card-footer" style="display:flex; gap:.5rem; justify-content:flex-end;">
+                    <a href="/TaskMaster" class="btn btn-secondary">Back to List</a>
+                    @if (!Model.IsStatusLocked)
+                    {
+                        <button type="submit" class="btn btn-primary">@(Model.EditMode ? "Save Changes" : "Create Task")</button>
+                    }
+                </div>
+            </div>
+        </form>
+
+        @if (Model.EditMode && Model.History.Count > 0)
+        {
+            <div class="card" style="margin-top:1rem;">
+                <div class="card-header"><h2>Activity History</h2></div>
+                <div class="card-body" style="padding:0;">
+                    <ul class="history-list">
+                        @foreach (var h in Model.History)
+                        {
+                            <li>
+                                <strong>@h.ActionType</strong>
+                                @if (!string.IsNullOrEmpty(h.OldStatus) || !string.IsNullOrEmpty(h.NewStatus))
+                                {
+                                    <span> — @(string.IsNullOrEmpty(h.OldStatus) ? "—" : h.OldStatus) → @(string.IsNullOrEmpty(h.NewStatus) ? "—" : h.NewStatus)</span>
+                                }
+                                @if (!string.IsNullOrEmpty(h.Remarks))
+                                {
+                                    <div>@h.Remarks</div>
+                                }
+                                <div class="history-meta">@h.CreatedOn.ToString("dd-MMM-yyyy HH:mm") · @(string.IsNullOrEmpty(h.CreatedByName) ? "System" : h.CreatedByName)</div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+    }
+
+</main>
+
+<script>
+    function toggleRefPanels() {
+        var type = document.getElementById('ReferenceType');
+        if (!type) return;
+        var val = type.value || 'None';
+        ['Employee', 'Customer', 'Vendor', 'Sales', 'Purchase'].forEach(function (t) {
+            var panel = document.getElementById('ref-' + t);
+            if (panel) panel.classList.toggle('visible', t === val);
+        });
+        // ensure inactive reference selects don't block / still submit zeros via main selects when visible
+    }
+    toggleRefPanels();
+</script>
+
+</body>
+</html>
