@@ -1,5 +1,6 @@
 using System;
 using System.Configuration;
+using System.Text;
 using System.Web;
 using System.Web.UI;
 using HRMS.Services;
@@ -19,6 +20,8 @@ namespace HRMS
 
         protected override void OnInit(EventArgs e)
         {
+            Response.ContentEncoding = Encoding.UTF8;
+            Response.Charset = "utf-8";
             base.OnInit(e);
 
             if (IsPublicPage) return;
@@ -27,6 +30,39 @@ namespace HRMS
             {
                 Response.Redirect("~/Login.aspx");
                 return;
+            }
+
+            var expectedUa = SessionHelper.GetString(Session, "AuthUserAgent");
+            var actualUa = Request.UserAgent ?? "";
+            if (!string.IsNullOrEmpty(expectedUa) && !string.Equals(expectedUa, actualUa, StringComparison.Ordinal))
+            {
+                Auth.Logout();
+                Response.Redirect("~/Login.aspx");
+                return;
+            }
+
+            var security = new AccountSecurityService();
+            if (Auth.CurrentUserId.HasValue)
+            {
+                if (!security.ValidateActiveSession(Auth.CurrentUserId.Value, Auth.SecurityStamp, out var mustChange, out var forceLogout))
+                {
+                    if (forceLogout)
+                    {
+                        Auth.Logout();
+                        Response.Redirect("~/Login.aspx");
+                        return;
+                    }
+                }
+                else if (mustChange)
+                {
+                    SessionHelper.SetInt32(Session, "MustChangePassword", 1);
+                    var rel = VirtualPathUtility.ToAppRelative(Request.Path).TrimStart('~');
+                    if (!AppForms.NormalizePath(rel).Equals("/accountsettings", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Response.Redirect("~/AccountSettings.aspx?mustChange=1");
+                        return;
+                    }
+                }
             }
 
             var path = VirtualPathUtility.ToAppRelative(Request.Path).TrimStart('~');

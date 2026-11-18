@@ -197,12 +197,15 @@ ORDER BY d.SortOrder, d.EmployeeDocumentID;", conn))
             }
         }
 
-        public string DocumentHref(string path)
+        public string DocumentHref(MyDocumentRow doc)
         {
-            if (string.IsNullOrWhiteSpace(path)) return "";
-            if (path.StartsWith("~/", StringComparison.Ordinal) || path.StartsWith("/", StringComparison.Ordinal))
-                return ResolveUrl(path.StartsWith("~", StringComparison.Ordinal) ? path : "~" + path);
-            return path;
+            if (doc == null) return "";
+            if (doc.EmployeeDocumentID > 0 && !string.IsNullOrWhiteSpace(doc.DocumentPath))
+                return ResolveUrl("~/EmployeeDocumentFile.aspx?id=" + doc.EmployeeDocumentID);
+            if (string.IsNullOrWhiteSpace(doc.DocumentPath)) return "";
+            if (doc.DocumentPath.StartsWith("~/", StringComparison.Ordinal) || doc.DocumentPath.StartsWith("/", StringComparison.Ordinal))
+                return ResolveUrl(doc.DocumentPath.StartsWith("~", StringComparison.Ordinal) ? doc.DocumentPath : "~" + doc.DocumentPath);
+            return ResolveUrl("~/EmployeeDocumentFile.aspx?id=" + doc.EmployeeDocumentID);
         }
 
         public static string StatusBadgeClass(string status)

@@ -81,27 +81,6 @@ ORDER BY ActionAt DESC;", conn))
         public override string ListSql => "SELECT TOP 500 SkillID, SkillCode, SkillName, FieldType, IsActive FROM tblSkill ORDER BY IsActive DESC, SkillCode;";
     }
 
-    public class SoftwareLinkSetupPage : SimpleListMasterPage
-    {
-        public override string PageTitle => "Software Link Setup";
-        public override string ListSql => "SELECT TOP 500 SoftwareLinkID, SoftwareName, SoftwareUrl, Category, IsActive FROM tblSoftwareLink ORDER BY SortOrder, SoftwareName;";
-    }
-
-    public class ImageGallerySetupPage : SimpleListMasterPage
-    {
-        public override string PageTitle => "Image Gallery Setup";
-        public override string ListSql => "SELECT TOP 500 GalleryImageID, Title, ImagePath, SortOrder, IsActive FROM tblGalleryImage ORDER BY SortOrder, GalleryImageID;";
-    }
-
-    public class EmployeeReportPage : SimpleListMasterPage
-    {
-        public override string PageTitle => "Employee Directory";
-        public override string ListSql => @"
-SELECT TOP 500 e.EmployeeCode, e.FirstName + ' ' + e.LastName AS FullName, d.DepartmentName, e.Designation, e.Status
-FROM tblEmployee e LEFT JOIN tblDepartment d ON d.DepartmentID=e.DepartmentID
-ORDER BY e.FirstName, e.LastName;";
-    }
-
     public class InventoryReportPage : SimpleListMasterPage
     {
         public override string PageTitle => "Inventory Report";
