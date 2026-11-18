@@ -37,7 +37,7 @@ public class LoginRequiredMiddleware
     {
         var p = path.TrimEnd('/').ToLowerInvariant();
         if (string.IsNullOrEmpty(p)) return true;
-        if (p == "/login") return true;
+        if (p == "/login" || p == "/forgotpassword" || p == "/verify2fa") return true;
         if (p.StartsWith("/css/", StringComparison.OrdinalIgnoreCase)) return true;
         if (p.StartsWith("/js/", StringComparison.OrdinalIgnoreCase)) return true;
         if (p.StartsWith("/images/", StringComparison.OrdinalIgnoreCase)) return true;
