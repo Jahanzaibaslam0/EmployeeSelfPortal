@@ -1,0 +1,316 @@
+@page
+@model HRMS.Pages.InvoiceMasterModel
+@{
+    Layout = null;
+    var pageTitle = Model.ShowForm
+        ? (Model.EditMode ? "Edit Invoice" : "New Invoice")
+        : "Invoice Master";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @pageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .inv-list-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+        .inv-list-header .right-controls { display:flex; align-items:center; gap:.6rem; }
+        .form-breadcrumb { display:flex; align-items:center; gap:.75rem; margin-bottom:1rem; padding:.5rem .75rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .form-breadcrumb .crumb-sep { color:#9ca3af; }
+        .form-breadcrumb .crumb-current { font-weight:600; color:#111827; }
+        .readonly-field { background:#f3f4f6; color:#374151; cursor:not-allowed; }
+        .grand-total-row { display:flex; justify-content:flex-end; align-items:center; gap:1rem; margin-top:1rem; padding:.75rem 1rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .grand-total-row .label { font-weight:600; color:#374151; }
+        .grand-total-row .amount { font-size:1.25rem; font-weight:700; color:var(--gb-blue); }
+        #invoiceItemTable input.form-control, #invoiceItemTable select.form-control { font-size:.78rem; padding:4px 6px; min-width:70px; }
+        #invoiceItemTable .item-line-total { font-size:.85rem; }
+    </style>
+</head>
+<body>
+
+    @await Html.PartialAsync("_AppHeader", pageTitle)
+
+    <main class="container">
+
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        @if (!Model.ShowForm)
+        {
+            <div class="card">
+                <div class="card-header inv-list-header">
+                    <h2>Invoice List</h2>
+                    <div class="right-controls">
+                        <input type="text" id="txtSearch" class="form-control" style="width:260px"
+                               placeholder="Search code / customer / ref…"
+                               onkeyup="searchInvoiceTable(this.value)" />
+                        <a href="/InvoiceMaster?newInvoice=true" class="btn btn-primary">+ New Invoice</a>
+                    </div>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table" id="invoiceTable">
+                        <thead class="grid-header">
+                            <tr>
+                                <th>#</th>
+                                <th>Invoice Code</th>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Customer</th>
+                                <th>Ref No</th>
+                                <th>Total</th>
+                                <th>Lines</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Invoices.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="9" style="text-align:center; padding:2rem; color:#6b7280;">
+                                        No invoices found.
+                                        <br />
+                                        <a href="/InvoiceMaster?newInvoice=true" class="btn btn-primary" style="margin-top:.75rem;">+ Add First Invoice</a>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                int rowNum = 0;
+                                foreach (var inv in Model.Invoices)
+                                {
+                                    rowNum++;
+                                    <tr class="@(rowNum % 2 == 0 ? "grid-alt-row" : "grid-row")">
+                                        <td>@rowNum</td>
+                                        <td><code style="font-size:.75rem;background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;">@inv.InvoiceCode</code></td>
+                                        <td>@inv.InvoiceDate.ToString("dd MMM yyyy")</td>
+                                        <td>@inv.InvoiceType</td>
+                                        <td>@inv.CustomerName</td>
+                                        <td>@inv.InvoiceRefNo</td>
+                                        <td>@inv.TotalAmount.ToString("N2")</td>
+                                        <td>@inv.LineCount</td>
+                                        <td style="white-space:nowrap;">
+                                            <a href="/InvoiceMaster?editId=@inv.InvoiceID" class="btn btn-secondary" style="padding:3px 12px; font-size:.8rem;">Edit</a>
+                                            <form method="post" asp-page-handler="Delete" style="display:inline"
+                                                  onsubmit="return confirm('Delete this invoice and all line items?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="deleteId" value="@inv.InvoiceID" />
+                                                <button type="submit" class="btn btn-danger" style="padding:3px 10px; font-size:.8rem;">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <span class="record-count">Total Records: @Model.Invoices.Count</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="form-breadcrumb">
+                <a href="/InvoiceMaster" class="btn btn-secondary" style="padding:4px 14px;">&#8592; Back to List</a>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">@(Model.EditMode ? "Edit Invoice" : "New Invoice")</span>
+                @if (Model.EditMode)
+                {
+                    <span class="crumb-sep">–</span>
+                    <span style="color:#4b5563; font-size:.9rem;">@Model.Input.InvoiceCode</span>
+                }
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>@(Model.EditMode ? "Edit Invoice" : "Add Invoice")</h2>
+                </div>
+
+                <form method="post" id="invoiceForm" novalidate onsubmit="return prepareInvoicePayload();">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="InvoiceID" value="@Model.Input.InvoiceID" />
+                    <input type="hidden" name="EditMode" value="@(Model.EditMode ? "true" : "false")" />
+                    <input type="hidden" name="ItemsJson" id="ItemsJson" />
+                    <input type="hidden" name="TotalAmount" id="TotalAmount" value="@Model.Input.TotalAmount" />
+
+                    <div class="card-body">
+                        <div class="form-grid">
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Invoice Header</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Invoice Code</label>
+                                <input type="text" name="InvoiceCode" class="form-control readonly-field"
+                                       value="@Model.Input.InvoiceCode" readonly />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Invoice Date <span class="required">*</span></label>
+                                <input type="date" name="InvoiceDate" id="txtInvoiceDate" class="form-control"
+                                       value="@Model.Input.InvoiceDate" required />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Invoice Type</label>
+                                <select name="InvoiceType" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var t in HRMS.Pages.InvoiceMasterModel.InvoiceTypeOptions)
+                                    {
+                                        <option value="@t" selected="@(t == Model.Input.InvoiceType)">@t</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Invoice Ref No</label>
+                                <input type="text" name="InvoiceRefNo" class="form-control"
+                                       value="@Model.Input.InvoiceRefNo" maxlength="100" />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Buyer (Seller) Information</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Buyer Name</label>
+                                <input type="text" name="BuyerName" class="form-control"
+                                       value="@Model.Input.BuyerName" maxlength="200" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Buyer NTN/CNIC</label>
+                                <input type="text" name="BuyerNTNCNIC" class="form-control"
+                                       value="@Model.Input.BuyerNTNCNIC" maxlength="50" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Buyer Province</label>
+                                <input type="text" name="BuyerProvince" class="form-control"
+                                       value="@Model.Input.BuyerProvince" maxlength="100" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Buyer Registration Type</label>
+                                <select name="BuyerRegistrationType" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var t in HRMS.Pages.InvoiceMasterModel.BuyerRegistrationTypeOptions)
+                                    {
+                                        <option value="@t" selected="@(t == Model.Input.BuyerRegistrationType)">@t</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Buyer Address</label>
+                                <textarea name="BuyerAddress" class="form-control" rows="2" maxlength="500">@Model.Input.BuyerAddress</textarea>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Customer Information</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Customer <span class="required">*</span></label>
+                                <select name="CustomerID" id="ddlCustomer" class="form-control" required>
+                                    <option value="">-- Select Customer --</option>
+                                    @foreach (var c in Model.Customers)
+                                    {
+                                        <option value="@c.Id" selected="@(c.Id == Model.Input.CustomerID)">@c.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Customer Name</label>
+                                <input type="text" name="CustomerName" id="txtCustomerName" class="form-control"
+                                       value="@Model.Input.CustomerName" maxlength="200" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Customer NTN/CNIC</label>
+                                <input type="text" name="CustomerNTNCNIC" id="txtCustomerNTNCNIC" class="form-control"
+                                       value="@Model.Input.CustomerNTNCNIC" maxlength="50" />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Customer Address</label>
+                                <textarea name="CustomerAddress" id="txtCustomerAddress" class="form-control" rows="2" maxlength="500">@Model.Input.CustomerAddress</textarea>
+                            </div>
+
+                        </div>
+
+                        <div class="form-group full-width mt-4">
+                            <div class="card">
+                                <div class="card-header space-between">
+                                    <h2>Invoice Line Items</h2>
+                                    <button type="button" class="btn btn-secondary" onclick="addInvoiceItemRow()">+ Add Line</button>
+                                </div>
+                                <div class="card-body table-responsive">
+                                    <table class="data-table" id="invoiceItemTable">
+                                        <thead class="grid-header">
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>Item ID</th>
+                                                <th>HS Code</th>
+                                                <th>Product Name</th>
+                                                <th>Qty</th>
+                                                <th>UOM</th>
+                                                <th>Unit Price</th>
+                                                <th>Tax</th>
+                                                <th>Extra Tax</th>
+                                                <th>FED</th>
+                                                <th>Sales Type</th>
+                                                <th>SRO Serial</th>
+                                                <th>Further Tax</th>
+                                                <th>Discount</th>
+                                                <th>Line Total</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grand-total-row">
+                            <span class="label">Grand Total:</span>
+                            <span class="amount" id="lblGrandTotal">@Model.Input.TotalAmount</span>
+                        </div>
+                    </div>
+
+                    <div class="card-footer" style="display:flex; gap:.75rem;">
+                        <button type="submit" class="btn btn-primary">@(Model.EditMode ? "Update Invoice" : "Save Invoice")</button>
+                        <a href="/InvoiceMaster" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+
+            <script type="application/json" id="productLookupData">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Products))</script>
+            <script type="application/json" id="salesTypeOptionsData">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(HRMS.Pages.InvoiceMasterModel.SalesTypeOptions))</script>
+            <script type="application/json" id="initialInvoiceItemsData">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ItemRecords))</script>
+            <script src="/js/invoice.js?v=1"></script>
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    @if (!Model.ShowForm)
+    {
+        <script>
+            function searchInvoiceTable(q) {
+                q = (q || '').toLowerCase();
+                document.querySelectorAll('#invoiceTable tbody tr').forEach(function (r) {
+                    if (r.querySelector('td[colspan]')) return;
+                    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+                });
+            }
+        </script>
+    }
+</body>
+</html>

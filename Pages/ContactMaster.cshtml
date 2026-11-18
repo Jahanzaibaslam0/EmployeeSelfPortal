@@ -1,0 +1,612 @@
+@page
+@model HRMS.Pages.ContactMasterModel
+@{
+    Layout = null;
+    var pageTitle = Model.ShowForm
+        ? (Model.EditMode ? "Edit Contact" : "New Contact")
+        : "Contact Master";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @pageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .list-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+        .list-header .right-controls { display:flex; align-items:center; gap:.6rem; }
+        .form-breadcrumb { display:flex; align-items:center; gap:.75rem; margin-bottom:1rem; padding:.5rem .75rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .form-breadcrumb .crumb-sep { color:#9ca3af; }
+        .form-breadcrumb .crumb-current { font-weight:600; color:#111827; }
+        .readonly-field { background:#f3f4f6; color:#374151; cursor:not-allowed; }
+        .stat-chips { display:flex; gap:.5rem; margin-bottom:.75rem; flex-wrap:wrap; }
+        .stat-chip { display:inline-flex; align-items:center; padding:4px 12px; border-radius:20px; font-size:.78rem; font-weight:600; }
+        .chip-total { background:rgba(46,49,146,.12); color:var(--gb-blue); }
+        .chip-active { background:#dcfce7; color:#166534; }
+        .chip-inactive { background:rgba(227,30,36,.12); color:var(--gb-red-dark); }
+        .ghazi-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+        .ghazi-table th, .ghazi-table td { padding:.45rem .5rem; border:1px solid #e5e7eb; vertical-align:top; }
+        .ghazi-table th { background:#f3f4f6; font-weight:600; white-space:nowrap; }
+        .ghazi-table .readonly-cell { background:#f9fafb; color:#374151; min-width:100px; }
+        .ghazi-table select, .ghazi-table input[type="date"] { min-width:130px; }
+        .ghazi-info { font-size:.78rem; color:#6b7280; margin-bottom:.75rem; }
+        .ghazi-employee-label { display:block; min-height:38px; padding:.45rem .65rem; font-size:.85rem; }
+        .ghazi-employee-msg { display:block; font-size:.75rem; color:#b45309; margin-top:.25rem; }
+    </style>
+</head>
+<body>
+
+    @await Html.PartialAsync("_AppHeader", pageTitle)
+
+    <main class="container">
+
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        @if (!Model.ShowForm)
+        {
+            int total = Model.Contacts.Count;
+            int active = Model.Contacts.Count(c => c.ContactStatus == "Active");
+            int inactive = total - active;
+
+            <div class="stat-chips">
+                <span class="stat-chip chip-total">Total: @total</span>
+                <span class="stat-chip chip-active">Active: @active</span>
+                <span class="stat-chip chip-inactive">Inactive: @inactive</span>
+            </div>
+
+            @await Html.PartialAsync("_MasterExcelPanel", "/ContactMaster")
+
+            <div class="card">
+                <div class="card-header list-header">
+                    <h2>Contact List</h2>
+                    <div class="right-controls">
+                        <input type="text" id="txtSearch" class="form-control" style="width:300px"
+                               placeholder="Search code / name / customer / email…"
+                               onkeyup="searchContactTable(this.value)" />
+                        <a href="/ContactMaster?newContact=true" class="btn btn-primary">+ New Contact</a>
+                    </div>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table" id="contactTable">
+                        <thead class="grid-header">
+                            <tr>
+                                <th>#</th>
+                                <th>Contact ID</th>
+                                <th>Customer</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Mobile</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Contacts.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="9" style="text-align:center; padding:2rem; color:#6b7280;">
+                                        No contacts found.
+                                        <br />
+                                        <a href="/ContactMaster?newContact=true" class="btn btn-primary" style="margin-top:.75rem;">+ Add First Contact</a>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                int rowNum = 0;
+                                foreach (var c in Model.Contacts)
+                                {
+                                    rowNum++;
+                                    <tr class="@(rowNum % 2 == 0 ? "grid-alt-row" : "grid-row")">
+                                        <td>@rowNum</td>
+                                        <td><code style="font-size:.75rem;background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;">@c.ContactCode</code></td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(c.CustomerCode))
+                                            {
+                                                <span>@c.CustomerCode</span><br />
+                                                <span style="font-size:.8rem;color:#6b7280;">@c.CustomerName</span>
+                                            }
+                                        </td>
+                                        <td><strong>@c.Name</strong></td>
+                                        <td>@c.ContactType</td>
+                                        <td>@c.Mobile</td>
+                                        <td>@c.Email</td>
+                                        <td>
+                                            <span class="badge @(c.ContactStatus == "Active" ? "badge-success" : "badge-danger")">@c.ContactStatus</span>
+                                        </td>
+                                        <td style="white-space:nowrap;">
+                                            <a href="/ContactMaster?editId=@c.ContactID" class="btn btn-secondary" style="padding:3px 12px; font-size:.8rem;">Edit</a>
+                                            @if (c.ContactStatus == "Active")
+                                            {
+                                                <form method="post" asp-page-handler="Delete" style="display:inline"
+                                                      onsubmit="return confirm('Deactivate this contact?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="deleteId" value="@c.ContactID" />
+                                                    <button type="submit" class="btn btn-danger" style="padding:3px 10px; font-size:.8rem;">Deactivate</button>
+                                                </form>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <span class="record-count">Total Records: @Model.Contacts.Count</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="form-breadcrumb">
+                <a href="/ContactMaster" class="btn btn-secondary" style="padding:4px 14px;">&#8592; Back to List</a>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">@(Model.EditMode ? "Edit Contact" : "New Contact")</span>
+                @if (Model.EditMode)
+                {
+                    <span class="crumb-sep">–</span>
+                    <span style="color:#4b5563; font-size:.9rem;">@Model.Input.ContactCode</span>
+                }
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>@(Model.EditMode ? "Edit Contact" : "Add Contact")</h2>
+                </div>
+
+                <form method="post" id="contactForm" novalidate data-hrms-validate="true" onsubmit="return validateContactForm();">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="ContactID" value="@Model.Input.ContactID" />
+                    <input type="hidden" name="EditMode" value="@(Model.EditMode ? "true" : "false")" />
+
+                    <div class="card-body">
+                        <div class="form-grid">
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Contact Information</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Contact ID</label>
+                                <input type="text" class="form-control readonly-field" value="@Model.Input.ContactCode" readonly />
+                                <small class="field-hint">Auto-generated (e.g. CNT000001)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Customer</label>
+                                <select name="CustomerID" class="form-control">
+                                    <option value="">-- Select Customer --</option>
+                                    @foreach (var item in Model.Customers)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.CustomerID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Contact For</label>
+                                <input type="text" name="ContactFor" class="form-control" value="@Model.Input.ContactFor" maxlength="200" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Contact Type</label>
+                                <select name="ContactType" class="form-control">
+                                    @foreach (var type in Model.ContactTypeOptions)
+                                    {
+                                        <option value="@type" selected="@(type == Model.Input.ContactType)">@type</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Contact Status</label>
+                                <select name="ContactStatus" class="form-control">
+                                    @foreach (var status in Model.ContactStatusOptions)
+                                    {
+                                        <option value="@status" selected="@(status == Model.Input.ContactStatus)">@status</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Name <span class="required">*</span></label>
+                                <input type="text" name="Name" id="txtName" class="form-control"
+                                       value="@Model.Input.Name" maxlength="200" required
+                                       onblur="syncSearchName()" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Search Name</label>
+                                <input type="text" name="SearchName" id="txtSearchName" class="form-control"
+                                       value="@Model.Input.SearchName" maxlength="200" />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Personal &amp; Professional</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Gender</label>
+                                <select name="GenderID" class="form-control">
+                                    <option value="">-- Select Gender --</option>
+                                    @foreach (var item in Model.Genders)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.GenderID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Marital Status</label>
+                                <select name="MaritalStatus" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var status in Model.MaritalStatusOptions)
+                                    {
+                                        <option value="@status" selected="@(status == Model.Input.MaritalStatus)">@status</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Professional Title</label>
+                                <input type="text" name="ProfessionalTitle" class="form-control"
+                                       value="@Model.Input.ProfessionalTitle" maxlength="150" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Department</label>
+                                <input type="text" name="Department" class="form-control"
+                                       value="@Model.Input.Department" maxlength="150" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Office Location</label>
+                                <input type="text" name="OfficeLocation" class="form-control"
+                                       value="@Model.Input.OfficeLocation" maxlength="200" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Available From</label>
+                                <input type="time" name="AvailableFrom" class="form-control" value="@Model.Input.AvailableFrom" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Available To</label>
+                                <input type="time" name="AvailableTo" class="form-control" value="@Model.Input.AvailableTo" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Report To Manager Name</label>
+                                <input type="text" name="ReportToManagerName" class="form-control"
+                                       value="@Model.Input.ReportToManagerName" maxlength="200" />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Communication</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="text" name="Phone" class="form-control" value="@Model.Input.Phone" maxlength="50"
+                                       data-validate="phone" data-label="Phone" placeholder="+92 21 111250365" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Mobile</label>
+                                <input type="text" name="Mobile" class="form-control" value="@Model.Input.Mobile" maxlength="50"
+                                       data-validate="phone" data-label="Mobile" placeholder="+92 300 1234567" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="Email" class="form-control" value="@Model.Input.Email" maxlength="150"
+                                       data-validate="email" data-label="Email" placeholder="name@company.com" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Whatsapp</label>
+                                <input type="text" name="Whatsapp" class="form-control" value="@Model.Input.Whatsapp" maxlength="50"
+                                       data-validate="phone" data-label="WhatsApp" placeholder="+92 300 1234567" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>URL</label>
+                                <input type="url" name="WebUrl" class="form-control" value="@(Model.Input.URL)" maxlength="250" placeholder="https://" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Fax</label>
+                                <input type="text" name="Fax" class="form-control" value="@Model.Input.Fax" maxlength="50"
+                                       data-validate="phone" data-label="Fax" />
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="card-footer" style="display:flex; gap:.75rem;">
+                        <button type="submit" class="btn btn-primary">@(Model.EditMode ? "Update Contact" : "Save Contact")</button>
+                        <a href="/ContactMaster" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+
+            @if (Model.EditMode && Model.Input.ContactID > 0)
+            {
+                <div class="card" style="margin-top:1rem;">
+                    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
+                        <h2>Contact Ghazi Responsible</h2>
+                        <button type="button" class="btn btn-secondary" onclick="addGhaziRow()">+ Add Row</button>
+                    </div>
+                    <p class="ghazi-info" style="padding:0 1rem; margin-top:.75rem;">
+                        Select a position to automatically populate the employee currently assigned in Position Worker Assignment (active assignments only).
+                    </p>
+                    <form method="post" asp-page-handler="SaveGhaziResponsibles">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="contactID" value="@Model.Input.ContactID" />
+                        <div class="card-body table-responsive">
+                            <table class="ghazi-table" id="ghaziTable">
+                                <thead>
+                                    <tr>
+                                        <th>Position</th>
+                                        <th>Employee ID</th>
+                                        <th>Employee Name</th>
+                                        <th>Department</th>
+                                        <th>Designation</th>
+                                        <th>Location</th>
+                                        <th>Effective From</th>
+                                        <th>Expiration</th>
+                                        <th>Purpose</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ghaziTableBody">
+                                    @if (Model.GhaziResponsibles.Count == 0)
+                                    {
+                                        <tr class="ghazi-row">
+                                            <td>
+                                                <select name="ghaziResponsibles[0].PositionID" class="form-control ghazi-position" onchange="onGhaziPositionChange(this)">
+                                                    <option value="0">-- Select Position --</option>
+                                                    @foreach (var pos in Model.Positions)
+                                                    {
+                                                        <option value="@pos.Id">@pos.Name</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <input type="hidden" name="ghaziResponsibles[0].EmployeeID" class="ghazi-employee-id" value="0" />
+                                                <span class="ghazi-employee-label readonly-field">—</span>
+                                                <small class="ghazi-employee-msg"></small>
+                                            </td>
+                                            <td class="readonly-cell ghazi-name"></td>
+                                            <td class="readonly-cell ghazi-dept"></td>
+                                            <td class="readonly-cell ghazi-desig"></td>
+                                            <td class="readonly-cell ghazi-loc"></td>
+                                            <td><input type="date" name="ghaziResponsibles[0].EffectiveFrom" class="form-control" /></td>
+                                            <td><input type="date" name="ghaziResponsibles[0].Expiration" class="form-control" /></td>
+                                            <td>
+                                                <select name="ghaziResponsibles[0].Purpose" class="form-control">
+                                                    <option value="">-- Select --</option>
+                                                    @foreach (var purpose in Model.GhaziPurposeOptions)
+                                                    {
+                                                        <option value="@purpose">@purpose</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td><button type="button" class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeGhaziRow(this)">X</button></td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        for (int i = 0; i < Model.GhaziResponsibles.Count; i++)
+                                        {
+                                            var row = Model.GhaziResponsibles[i];
+                                            <tr class="ghazi-row">
+                                                <td>
+                                                    <select name="ghaziResponsibles[@i].PositionID" class="form-control ghazi-position" onchange="onGhaziPositionChange(this)">
+                                                        <option value="0">-- Select Position --</option>
+                                                        @foreach (var pos in Model.Positions)
+                                                        {
+                                                            if (pos.Id == row.PositionID)
+                                                            {
+                                                                <option value="@pos.Id" selected>@pos.Name</option>
+                                                            }
+                                                            else
+                                                            {
+                                                                <option value="@pos.Id">@pos.Name</option>
+                                                            }
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="hidden" name="ghaziResponsibles[@i].EmployeeID" class="ghazi-employee-id" value="@row.EmployeeID" />
+                                                    <span class="ghazi-employee-label readonly-field">@(string.IsNullOrEmpty(row.EmployeeCode) ? "—" : row.EmployeeCode)</span>
+                                                    <small class="ghazi-employee-msg"></small>
+                                                </td>
+                                                <td class="readonly-cell ghazi-name">@row.EmployeeName</td>
+                                                <td class="readonly-cell ghazi-dept">@row.Department</td>
+                                                <td class="readonly-cell ghazi-desig">@row.Designation</td>
+                                                <td class="readonly-cell ghazi-loc">@row.Location</td>
+                                                <td><input type="date" name="ghaziResponsibles[@i].EffectiveFrom" class="form-control" value="@row.EffectiveFrom?.ToString("yyyy-MM-dd")" /></td>
+                                                <td><input type="date" name="ghaziResponsibles[@i].Expiration" class="form-control" value="@row.Expiration?.ToString("yyyy-MM-dd")" /></td>
+                                                <td>
+                                                    <select name="ghaziResponsibles[@i].Purpose" class="form-control">
+                                                        <option value="">-- Select --</option>
+                                                        @foreach (var purpose in Model.GhaziPurposeOptions)
+                                                        {
+                                                            if (purpose == row.Purpose)
+                                                            {
+                                                                <option value="@purpose" selected>@purpose</option>
+                                                            }
+                                                            else
+                                                            {
+                                                                <option value="@purpose">@purpose</option>
+                                                            }
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td><button type="button" class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeGhaziRow(this)">X</button></td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Save Ghazi Responsible</button>
+                        </div>
+                    </form>
+                </div>
+            }
+            else if (Model.ShowForm && !Model.EditMode)
+            {
+                <div class="card" style="margin-top:1rem;">
+                    <div class="card-body">
+                        <p style="color:#6b7280; margin:0;">Save the contact first, then you can add Ghazi responsible records.</p>
+                    </div>
+                </div>
+            }
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    <script>
+        function searchContactTable(q) {
+            q = (q || '').toLowerCase();
+            document.querySelectorAll('#contactTable tbody tr').forEach(function (r) {
+                if (r.querySelector('td[colspan]')) return;
+                r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        function syncSearchName() {
+            var name = document.getElementById('txtName');
+            var search = document.getElementById('txtSearchName');
+            if (name && search && !search.value.trim())
+                search.value = name.value.trim();
+        }
+
+        function validateContactForm() {
+            var name = document.getElementById('txtName');
+            if (!name || !name.value.trim()) {
+                alert('Contact name is required.');
+                return false;
+            }
+            if (window.HrmsValidation && !HrmsValidation.validateForm(document.getElementById('contactForm'))) {
+                return false;
+            }
+            return true;
+        }
+
+        var ghaziRowIndex = @Math.Max(Model.GhaziResponsibles.Count, 1);
+        var positionOptionsHtml = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            string.Join("", Model.Positions.Select(p => $"<option value=\"{p.Id}\">{System.Net.WebUtility.HtmlEncode(p.Name)}</option>"))));
+        var purposeOptionsHtml = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            string.Join("", Model.GhaziPurposeOptions.Select(p => $"<option value=\"{System.Net.WebUtility.HtmlEncode(p)}\">{System.Net.WebUtility.HtmlEncode(p)}</option>"))));
+
+        function onGhaziPositionChange(selectEl) {
+            var row = selectEl.closest('tr');
+            var positionId = selectEl.value;
+            clearGhaziEmployeeFields(row);
+            if (!positionId || positionId === '0') return;
+
+            fetch('/ContactMaster?handler=ActivePositionWorker&positionId=' + encodeURIComponent(positionId))
+                .then(function (r) { return r.json(); })
+                .then(function (result) { applyActivePositionWorker(row, result); });
+        }
+
+        function applyActivePositionWorker(row, result) {
+            var idInput = row.querySelector('.ghazi-employee-id');
+            var label = row.querySelector('.ghazi-employee-label');
+            var msg = row.querySelector('.ghazi-employee-msg');
+
+            if (!result || !result.employeeID || result.employeeID <= 0) {
+                idInput.value = '0';
+                label.textContent = '—';
+                msg.textContent = (result && result.message) ? result.message : 'No active employee is assigned to this position.';
+                clearGhaziEmployeeInfo(row);
+                return;
+            }
+
+            idInput.value = result.employeeID;
+            label.textContent = result.employeeCode || String(result.employeeID);
+            msg.textContent = '';
+            setGhaziEmployeeInfo(row, result);
+        }
+
+        function clearGhaziEmployeeFields(row) {
+            var idInput = row.querySelector('.ghazi-employee-id');
+            var label = row.querySelector('.ghazi-employee-label');
+            var msg = row.querySelector('.ghazi-employee-msg');
+            if (idInput) idInput.value = '0';
+            if (label) label.textContent = '—';
+            if (msg) msg.textContent = '';
+            clearGhaziEmployeeInfo(row);
+        }
+
+        function setGhaziEmployeeInfo(row, info) {
+            row.querySelector('.ghazi-name').textContent = info.employeeName || '';
+            row.querySelector('.ghazi-dept').textContent = info.department || '';
+            row.querySelector('.ghazi-desig').textContent = info.designation || '';
+            row.querySelector('.ghazi-loc').textContent = info.location || '';
+        }
+
+        function clearGhaziEmployeeInfo(row) {
+            setGhaziEmployeeInfo(row, {});
+        }
+
+        function addGhaziRow() {
+            var tbody = document.getElementById('ghaziTableBody');
+            if (!tbody) return;
+            var idx = ghaziRowIndex++;
+            var tr = document.createElement('tr');
+            tr.className = 'ghazi-row';
+            tr.innerHTML =
+                '<td><select name="ghaziResponsibles[' + idx + '].PositionID" class="form-control ghazi-position" onchange="onGhaziPositionChange(this)">' +
+                '<option value="0">-- Select Position --</option>' + positionOptionsHtml + '</select></td>' +
+                '<td><input type="hidden" name="ghaziResponsibles[' + idx + '].EmployeeID" class="ghazi-employee-id" value="0" />' +
+                '<span class="ghazi-employee-label readonly-field">—</span><small class="ghazi-employee-msg"></small></td>' +
+                '<td class="readonly-cell ghazi-name"></td>' +
+                '<td class="readonly-cell ghazi-dept"></td>' +
+                '<td class="readonly-cell ghazi-desig"></td>' +
+                '<td class="readonly-cell ghazi-loc"></td>' +
+                '<td><input type="date" name="ghaziResponsibles[' + idx + '].EffectiveFrom" class="form-control" /></td>' +
+                '<td><input type="date" name="ghaziResponsibles[' + idx + '].Expiration" class="form-control" /></td>' +
+                '<td><select name="ghaziResponsibles[' + idx + '].Purpose" class="form-control">' +
+                '<option value="">-- Select --</option>' + purposeOptionsHtml + '</select></td>' +
+                '<td><button type="button" class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeGhaziRow(this)">X</button></td>';
+            tbody.appendChild(tr);
+        }
+
+        function removeGhaziRow(btn) {
+            var tbody = document.getElementById('ghaziTableBody');
+            var row = btn.closest('tr');
+            if (!tbody || !row) return;
+            if (tbody.querySelectorAll('.ghazi-row').length <= 1) {
+                row.querySelector('.ghazi-position').value = '0';
+                row.querySelectorAll('input[type="date"]').forEach(function (el) { el.value = ''; });
+                row.querySelector('select[name*=".Purpose"]').value = '';
+                clearGhaziEmployeeFields(row);
+                return;
+            }
+            row.remove();
+            reindexGhaziRows();
+        }
+
+        function reindexGhaziRows() {
+            document.querySelectorAll('#ghaziTableBody .ghazi-row').forEach(function (row, i) {
+                row.querySelectorAll('[name^="ghaziResponsibles["]').forEach(function (el) {
+                    el.name = el.name.replace(/ghaziResponsibles\[\d+\]/, 'ghaziResponsibles[' + i + ']');
+                });
+            });
+            ghaziRowIndex = document.querySelectorAll('#ghaziTableBody .ghazi-row').length;
+        }
+    </script>
+</body>
+</html>

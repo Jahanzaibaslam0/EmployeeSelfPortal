@@ -1,0 +1,249 @@
+using HRMS.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Data.SqlClient;
+
+namespace HRMS.Pages;
+
+public class GalleryImageRecord
+{
+    public int GalleryImageID { get; set; }
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string ImagePath { get; set; } = "";
+    public string OriginalFileName { get; set; } = "";
+    public int SortOrder { get; set; } = 1;
+    public bool IsActive { get; set; } = true;
+}
+
+public class ImageGallerySetupModel : PageModel
+{
+    private readonly string _conn;
+    private readonly AuthService _auth;
+    private readonly IWebHostEnvironment _env;
+
+    private static readonly string[] AllowedExtensions = { ".png", ".jpg", ".jpeg", ".webp", ".gif" };
+
+    public ImageGallerySetupModel(IConfiguration config, AuthService auth, IWebHostEnvironment env)
+    {
+        _conn = config.GetConnectionString("HRMSConnection")!;
+        _auth = auth;
+        _env = env;
+    }
+
+    public string PageTitle => "Image Gallery Setup";
+    public GalleryImageRecord Input { get; set; } = new();
+    public List<GalleryImageRecord> Records { get; set; } = new();
+    public string AlertMessage { get; set; } = "";
+    public string AlertType { get; set; } = "success";
+
+    public void OnGet(int? editId)
+    {
+        LoadAlert();
+        if (editId.HasValue && editId > 0)
+            Input = LoadRecordById(editId.Value) ?? new GalleryImageRecord();
+        LoadRecords();
+    }
+
+    public async Task<IActionResult> OnPostSaveAsync(
+        int galleryImageID, string title, string description,
+        int sortOrder, bool isActive, IFormFile? imageFile)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            TempData["Alert"] = "Title is required.";
+            TempData["AlertType"] = "error";
+            return RedirectToPage();
+        }
+
+        if (sortOrder < 0) sortOrder = 0;
+
+        try
+        {
+            string? imagePath = null;
+            string? originalName = null;
+
+            if (galleryImageID > 0)
+            {
+                var existing = LoadRecordById(galleryImageID);
+                imagePath = existing?.ImagePath;
+                originalName = existing?.OriginalFileName;
+            }
+
+            if (imageFile != null && imageFile.Length > 0)
+            {
+                var saved = SaveImageFile(imageFile, galleryImageID > 0 ? galleryImageID : 0);
+                imagePath = saved.path;
+                originalName = saved.originalName;
+            }
+
+            if (galleryImageID == 0 && string.IsNullOrWhiteSpace(imagePath))
+            {
+                TempData["Alert"] = "Please upload an image.";
+                TempData["AlertType"] = "error";
+                return RedirectToPage();
+            }
+
+            using var conn = new SqlConnection(_conn);
+            conn.Open();
+
+            if (galleryImageID > 0)
+            {
+                using var cmd = new SqlCommand(@"
+                    UPDATE tblGalleryImage
+                    SET Title = @Title,
+                        Description = @Description,
+                        ImagePath = @ImagePath,
+                        OriginalFileName = @OriginalFileName,
+                        SortOrder = @SortOrder,
+                        IsActive = @IsActive,
+                        ModifiedOn = GETDATE(),
+                        ModifiedByUserID = @ModifiedByUserID
+                    WHERE GalleryImageID = @Id;", conn);
+                BindParams(cmd, galleryImageID, title, description, imagePath, originalName, sortOrder, isActive);
+                AuditHelper.AddModifiedBy(cmd, _auth.CurrentUserId);
+                cmd.ExecuteNonQuery();
+                TempData["Alert"] = "Gallery image updated successfully.";
+            }
+            else
+            {
+                using var cmd = new SqlCommand(@"
+                    INSERT INTO tblGalleryImage
+                        (Title, Description, ImagePath, OriginalFileName, SortOrder, IsActive, CreatedOn, CreatedByUserID)
+                    VALUES
+                        (@Title, @Description, @ImagePath, @OriginalFileName, @SortOrder, @IsActive, GETDATE(), @CreatedByUserID);
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);", conn);
+                BindParams(cmd, 0, title, description, imagePath, originalName, sortOrder, isActive, isInsert: true);
+                AuditHelper.AddCreatedBy(cmd, _auth.CurrentUserId);
+                var newId = Convert.ToInt32(cmd.ExecuteScalar());
+
+                if (imageFile != null && imageFile.Length > 0 && newId > 0)
+                {
+                    var saved = SaveImageFile(imageFile, newId);
+                    using var upd = new SqlCommand(@"
+                        UPDATE tblGalleryImage
+                        SET ImagePath = @Path, OriginalFileName = @Orig
+                        WHERE GalleryImageID = @Id;", conn);
+                    upd.Parameters.AddWithValue("@Path", saved.path);
+                    upd.Parameters.AddWithValue("@Orig", saved.originalName);
+                    upd.Parameters.AddWithValue("@Id", newId);
+                    upd.ExecuteNonQuery();
+                }
+
+                TempData["Alert"] = "Gallery image added successfully.";
+            }
+
+            TempData["AlertType"] = "success";
+        }
+        catch (Exception ex)
+        {
+            TempData["Alert"] = "Error: " + ex.Message;
+            TempData["AlertType"] = "error";
+        }
+
+        return RedirectToPage();
+    }
+
+    public IActionResult OnPostDelete(int deleteId)
+    {
+        try
+        {
+            using var conn = new SqlConnection(_conn);
+            using var cmd = new SqlCommand(@"
+                UPDATE tblGalleryImage
+                SET IsActive = 0,
+                    ModifiedOn = GETDATE(),
+                    ModifiedByUserID = @ModifiedByUserID
+                WHERE GalleryImageID = @Id;", conn);
+            cmd.Parameters.AddWithValue("@Id", deleteId);
+            AuditHelper.AddModifiedBy(cmd, _auth.CurrentUserId);
+            conn.Open();
+            cmd.ExecuteNonQuery();
+
+            TempData["Alert"] = "Gallery image deactivated successfully.";
+            TempData["AlertType"] = "success";
+        }
+        catch (Exception ex)
+        {
+            TempData["Alert"] = "Error removing record: " + ex.Message;
+            TempData["AlertType"] = "error";
+        }
+
+        return RedirectToPage();
+    }
+
+    private static void BindParams(SqlCommand cmd, int id, string title, string description,
+        string? imagePath, string? originalName, int sortOrder, bool isActive, bool isInsert = false)
+    {
+        if (!isInsert) cmd.Parameters.AddWithValue("@Id", id);
+        cmd.Parameters.AddWithValue("@Title", title.Trim());
+        cmd.Parameters.AddWithValue("@Description", string.IsNullOrWhiteSpace(description) ? DBNull.Value : description.Trim());
+        cmd.Parameters.AddWithValue("@ImagePath", string.IsNullOrWhiteSpace(imagePath) ? DBNull.Value : imagePath);
+        cmd.Parameters.AddWithValue("@OriginalFileName", string.IsNullOrWhiteSpace(originalName) ? DBNull.Value : originalName);
+        cmd.Parameters.AddWithValue("@SortOrder", sortOrder);
+        cmd.Parameters.AddWithValue("@IsActive", isActive);
+    }
+
+    private (string path, string originalName) SaveImageFile(IFormFile file, int galleryImageId)
+    {
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!AllowedExtensions.Contains(ext))
+            throw new InvalidOperationException("File type not allowed. Use PNG, JPG, JPEG, WEBP, or GIF.");
+
+        var uploads = Path.Combine(_env.WebRootPath, "uploads", "gallery");
+        Directory.CreateDirectory(uploads);
+
+        var safeName = $"gallery_{galleryImageId}_{DateTime.UtcNow:yyyyMMddHHmmssfff}{ext}";
+        var fullPath = Path.Combine(uploads, safeName);
+
+        using (var fs = System.IO.File.Create(fullPath))
+            file.CopyTo(fs);
+
+        return ($"/uploads/gallery/{safeName}", file.FileName);
+    }
+
+    private GalleryImageRecord? LoadRecordById(int id)
+    {
+        using var conn = new SqlConnection(_conn);
+        using var cmd = new SqlCommand(@"
+            SELECT GalleryImageID, Title, Description, ImagePath, OriginalFileName, SortOrder, IsActive
+            FROM tblGalleryImage WHERE GalleryImageID = @Id;", conn);
+        cmd.Parameters.AddWithValue("@Id", id);
+        conn.Open();
+        using var dr = cmd.ExecuteReader();
+        if (!dr.Read()) return null;
+        return MapRecord(dr);
+    }
+
+    private void LoadRecords()
+    {
+        Records.Clear();
+        using var conn = new SqlConnection(_conn);
+        using var cmd = new SqlCommand(@"
+            SELECT GalleryImageID, Title, Description, ImagePath, OriginalFileName, SortOrder, IsActive
+            FROM tblGalleryImage
+            ORDER BY IsActive DESC, SortOrder, GalleryImageID;", conn);
+        conn.Open();
+        using var dr = cmd.ExecuteReader();
+        while (dr.Read())
+            Records.Add(MapRecord(dr));
+    }
+
+    private static GalleryImageRecord MapRecord(SqlDataReader dr) => new()
+    {
+        GalleryImageID = Convert.ToInt32(dr["GalleryImageID"]),
+        Title = dr["Title"].ToString() ?? "",
+        Description = dr["Description"] == DBNull.Value ? "" : dr["Description"].ToString() ?? "",
+        ImagePath = dr["ImagePath"].ToString() ?? "",
+        OriginalFileName = dr["OriginalFileName"] == DBNull.Value ? "" : dr["OriginalFileName"].ToString() ?? "",
+        SortOrder = Convert.ToInt32(dr["SortOrder"]),
+        IsActive = Convert.ToBoolean(dr["IsActive"])
+    };
+
+    private void LoadAlert()
+    {
+        if (!TempData.ContainsKey("Alert")) return;
+        AlertMessage = TempData["Alert"]?.ToString() ?? "";
+        AlertType = TempData["AlertType"]?.ToString() ?? "success";
+    }
+}

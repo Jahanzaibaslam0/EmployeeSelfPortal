@@ -1,0 +1,152 @@
+@page
+@model HRMS.Pages.GoodsReceiptMasterModel
+@{ Layout = null; var title = Model.ShowForm ? "New Goods Receipt" : "Goods Receipt"; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @title</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body>
+@await Html.PartialAsync("_AppHeader", title)
+<main class="container">
+@if (!string.IsNullOrEmpty(Model.AlertMessage)) { <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div> }
+@if (!Model.ShowForm)
+{
+    <div class="card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <h2>Goods Receipts</h2>
+            <div>
+                <a href="/InventoryMaster" class="btn btn-secondary">← Inventory</a>
+                <a href="/GoodsReceiptMaster?newReceipt=true" class="btn btn-primary">+ Receive Goods</a>
+            </div>
+        </div>
+        <div class="card-body table-responsive">
+            <table class="data-table">
+                <thead class="grid-header"><tr><th>GRN #</th><th>Date</th><th>PO #</th><th>Vendor</th><th>Total Qty</th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Receipts) {
+                    <tr><td><code>@r.GoodsReceiptCode</code></td><td>@r.ReceiptDate.ToString("dd MMM yyyy")</td>
+                        <td>@r.PurchaseOrderCode</td><td>@r.VendorName</td><td>@r.TotalQty.ToString("N4")</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <form method="post" id="grForm" onsubmit="return prepareGR();">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="LinesJson" id="LinesJson" />
+        <div class="card">
+            <div class="card-header"><h2>Receive Goods Against Purchase Order</h2></div>
+            <div class="card-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Receipt Date <span class="required">*</span></label>
+                        <input type="date" name="ReceiptDate" id="txtReceiptDate" class="form-control" value="@Model.ReceiptDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Purchase Order <span class="required">*</span></label>
+                        <select name="PurchaseOrderID" id="ddlPO" class="form-control" required>
+                            <option value="">-- Select PO --</option>
+                            @foreach (var po in Model.OpenPurchaseOrders) {
+                                <option value="@po.Id" selected="@(po.Id == Model.SelectedPoId)">@po.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Vendor</label>
+                        <input type="text" name="VendorName" id="txtVendor" class="form-control readonly-field" readonly value="@Model.VendorName" />
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Remarks</label>
+                        <textarea name="Remarks" class="form-control" rows="2">@Model.Remarks</textarea>
+                    </div>
+                </div>
+                <div class="table-responsive" style="margin-top:1rem;">
+                    <table class="data-table" id="grLineTable">
+                        <thead class="grid-header">
+                            <tr><th>Product</th><th>Description</th><th>Ordered</th><th>Received</th><th>Receive Now</th><th>Unit Cost</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer" style="display:flex;gap:.75rem;">
+                <button type="submit" class="btn btn-primary">Post Receipt & Update Stock</button>
+                <a href="/GoodsReceiptMaster" class="btn btn-secondary">Cancel</a>
+            </div>
+        </div>
+    </form>
+    <script type="application/json" id="initialGRLines">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Lines))</script>
+    <script>
+        function buildGRRow(d) {
+            d = d || {};
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td><input type="hidden" class="po-item-id" value="' + (d.purchaseOrderItemID || d.PurchaseOrderItemID || '') + '" />' +
+                '<input type="hidden" class="product-id" value="' + (d.productID || d.ProductID || '') + '" />' +
+                '<input type="text" class="form-control readonly-field product-code" readonly value="' + (d.productCode || d.ProductCode || '') + '" /></td>' +
+                '<td><input type="text" class="form-control readonly-field product-desc" readonly value="' + (d.productDescription || d.ProductDescription || '') + '" /></td>' +
+                '<td><input type="text" class="form-control readonly-field" readonly value="' + (d.orderedQty || d.OrderedQty || '') + '" /></td>' +
+                '<td><input type="text" class="form-control readonly-field" readonly value="' + (d.alreadyReceived || d.AlreadyReceived || '') + '" /></td>' +
+                '<td><input type="number" step="0.0001" min="0" class="form-control recv-qty" value="' + (d.receiveQty || d.ReceiveQty || '') + '" /></td>' +
+                '<td><input type="number" step="0.0001" min="0" class="form-control unit-cost" value="' + (d.unitCost || d.UnitCost || '') + '" /></td>';
+            return tr;
+        }
+        function loadPOLines(poId) {
+            if (!poId) return;
+            fetch('/GoodsReceiptMaster?handler=PoLines&purchaseOrderId=' + poId)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    document.getElementById('txtVendor').value = data.vendor || '';
+                    var tbody = document.querySelector('#grLineTable tbody');
+                    tbody.innerHTML = '';
+                    (data.lines || []).forEach(function (l) {
+                        var row = buildGRRow({
+                            purchaseOrderItemID: l.purchaseOrderItemID || l.PurchaseOrderItemID,
+                            productID: l.productID || l.ProductID,
+                            productCode: l.productCode || l.ProductCode,
+                            productDescription: l.productDescription || l.ProductDescription,
+                            orderedQty: l.orderedQty || l.OrderedQty,
+                            alreadyReceived: l.receivedQty || l.ReceivedQty,
+                            receiveQty: l.pendingQty || l.PendingQty,
+                            unitCost: l.unitPrice || l.UnitPrice
+                        });
+                        tbody.appendChild(row);
+                    });
+                });
+        }
+        function prepareGR() {
+            var lines = Array.from(document.querySelectorAll('#grLineTable tbody tr')).map(function (tr) {
+                return {
+                    purchaseOrderItemID: parseInt(tr.querySelector('.po-item-id').value, 10) || 0,
+                    productID: parseInt(tr.querySelector('.product-id').value, 10) || 0,
+                    productCode: tr.querySelector('.product-code').value,
+                    productDescription: tr.querySelector('.product-desc').value,
+                    receiveQty: tr.querySelector('.recv-qty').value,
+                    unitCost: tr.querySelector('.unit-cost').value
+                };
+            }).filter(function (l) { return parseFloat(l.receiveQty) > 0; });
+            if (!lines.length) { alert('Enter receive quantity for at least one line.'); return false; }
+            document.getElementById('LinesJson').value = JSON.stringify(lines);
+            return true;
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            var ddl = document.getElementById('ddlPO');
+            var initial = [];
+            try { initial = JSON.parse(document.getElementById('initialGRLines').textContent || '[]'); } catch (e) {}
+            if (initial.length) {
+                var tbody = document.querySelector('#grLineTable tbody');
+                initial.forEach(function (d) { tbody.appendChild(buildGRRow(d)); });
+            }
+            if (ddl) ddl.addEventListener('change', function () { loadPOLines(this.value); });
+        });
+    </script>
+}
+</main>
+@await Html.PartialAsync("_AppFooter")
+</body>
+</html>

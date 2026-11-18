@@ -1,0 +1,150 @@
+@page
+@model HRMS.Pages.GoodsIssueMasterModel
+@{ Layout = null; var title = Model.ShowForm ? "New Goods Issue" : "Goods Issue"; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @title</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body>
+@await Html.PartialAsync("_AppHeader", title)
+<main class="container">
+@if (!string.IsNullOrEmpty(Model.AlertMessage)) { <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div> }
+@if (!Model.ShowForm)
+{
+    <div class="card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <h2>Goods Issues</h2>
+            <div>
+                <a href="/InventoryMaster" class="btn btn-secondary">← Inventory</a>
+                <a href="/GoodsIssueMaster?newIssue=true" class="btn btn-primary">+ Issue Goods</a>
+            </div>
+        </div>
+        <div class="card-body table-responsive">
+            <table class="data-table">
+                <thead class="grid-header"><tr><th>GIN #</th><th>Date</th><th>SO #</th><th>Customer</th><th>Total Qty</th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Issues) {
+                    <tr><td><code>@r.GoodsIssueCode</code></td><td>@r.IssueDate.ToString("dd MMM yyyy")</td>
+                        <td>@r.SalesOrderCode</td><td>@r.CustomerName</td><td>@r.TotalQty.ToString("N4")</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <form method="post" id="giForm" onsubmit="return prepareGI();">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="LinesJson" id="LinesJson" />
+        <div class="card">
+            <div class="card-header"><h2>Issue Goods Against Sales Order</h2></div>
+            <div class="card-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Issue Date <span class="required">*</span></label>
+                        <input type="date" name="IssueDate" class="form-control" value="@Model.IssueDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Sales Order <span class="required">*</span></label>
+                        <select name="SalesOrderID" id="ddlSO" class="form-control" required>
+                            <option value="">-- Select SO --</option>
+                            @foreach (var so in Model.OpenSalesOrders) {
+                                <option value="@so.Id" selected="@(so.Id == Model.SelectedSoId)">@so.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Customer</label>
+                        <input type="text" name="CustomerName" id="txtCustomer" class="form-control readonly-field" readonly value="@Model.CustomerName" />
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Remarks</label>
+                        <textarea name="Remarks" class="form-control" rows="2">@Model.Remarks</textarea>
+                    </div>
+                </div>
+                <div class="table-responsive" style="margin-top:1rem;">
+                    <table class="data-table" id="giLineTable">
+                        <thead class="grid-header">
+                            <tr><th>Product</th><th>Description</th><th>Ordered</th><th>Issued</th><th>On Hand</th><th>Issue Now</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer" style="display:flex;gap:.75rem;">
+                <button type="submit" class="btn btn-primary">Post Issue & Update Stock</button>
+                <a href="/GoodsIssueMaster" class="btn btn-secondary">Cancel</a>
+            </div>
+        </div>
+    </form>
+    <script type="application/json" id="initialGILines">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Lines))</script>
+    <script>
+        function buildGIRow(d) {
+            d = d || {};
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td><input type="hidden" class="so-item-id" value="' + (d.salesOrderItemID || d.SalesOrderItemID || '') + '" />' +
+                '<input type="hidden" class="product-id" value="' + (d.productID || d.ProductID || '') + '" />' +
+                '<input type="text" class="form-control readonly-field product-code" readonly value="' + (d.productCode || d.ProductCode || '') + '" /></td>' +
+                '<td><input type="text" class="form-control readonly-field product-desc" readonly value="' + (d.productDescription || d.ProductDescription || '') + '" /></td>' +
+                '<td><input type="text" class="form-control readonly-field" readonly value="' + (d.orderedQty || d.OrderedQty || '') + '" /></td>' +
+                '<td><input type="text" class="form-control readonly-field" readonly value="' + (d.alreadyIssued || d.AlreadyIssued || '') + '" /></td>' +
+                '<td><input type="text" class="form-control readonly-field stock-on-hand" readonly value="' + (d.stockOnHand || d.StockOnHand || '') + '" /></td>' +
+                '<td><input type="number" step="0.0001" min="0" class="form-control issue-qty" value="' + (d.issueQty || d.IssueQty || '') + '" /></td>';
+            return tr;
+        }
+        function loadSOLines(soId) {
+            if (!soId) return;
+            fetch('/GoodsIssueMaster?handler=SoLines&salesOrderId=' + soId)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    document.getElementById('txtCustomer').value = data.customer || '';
+                    var tbody = document.querySelector('#giLineTable tbody');
+                    tbody.innerHTML = '';
+                    (data.lines || []).forEach(function (l) {
+                        tbody.appendChild(buildGIRow({
+                            salesOrderItemID: l.salesOrderItemID || l.SalesOrderItemID,
+                            productID: l.productID || l.ProductID,
+                            productCode: l.productCode || l.ProductCode,
+                            productDescription: l.productDescription || l.ProductDescription,
+                            orderedQty: l.orderedQty || l.OrderedQty,
+                            alreadyIssued: l.issuedQty || l.IssuedQty,
+                            stockOnHand: l.stockOnHand || l.StockOnHand,
+                            issueQty: l.pendingQty || l.PendingQty
+                        }));
+                    });
+                });
+        }
+        function prepareGI() {
+            var lines = Array.from(document.querySelectorAll('#giLineTable tbody tr')).map(function (tr) {
+                return {
+                    salesOrderItemID: parseInt(tr.querySelector('.so-item-id').value, 10) || 0,
+                    productID: parseInt(tr.querySelector('.product-id').value, 10) || 0,
+                    productCode: tr.querySelector('.product-code').value,
+                    productDescription: tr.querySelector('.product-desc').value,
+                    issueQty: tr.querySelector('.issue-qty').value
+                };
+            }).filter(function (l) { return parseFloat(l.issueQty) > 0; });
+            if (!lines.length) { alert('Enter issue quantity for at least one line.'); return false; }
+            document.getElementById('LinesJson').value = JSON.stringify(lines);
+            return true;
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            var ddl = document.getElementById('ddlSO');
+            var initial = [];
+            try { initial = JSON.parse(document.getElementById('initialGILines').textContent || '[]'); } catch (e) {}
+            if (initial.length) {
+                var tbody = document.querySelector('#giLineTable tbody');
+                initial.forEach(function (d) { tbody.appendChild(buildGIRow(d)); });
+            }
+            if (ddl) ddl.addEventListener('change', function () { loadSOLines(this.value); });
+        });
+    </script>
+}
+</main>
+@await Html.PartialAsync("_AppFooter")
+</body>
+</html>

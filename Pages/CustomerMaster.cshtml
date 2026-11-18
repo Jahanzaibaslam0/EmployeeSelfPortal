@@ -1,0 +1,460 @@
+@page
+@model HRMS.Pages.CustomerMasterModel
+@{
+    Layout = null;
+    var pageTitle = Model.ShowForm
+        ? (Model.EditMode ? "Edit Customer" : "New Customer")
+        : "Customer Master";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @pageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .cust-list-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+        .cust-list-header .right-controls { display:flex; align-items:center; gap:.6rem; }
+        .form-breadcrumb { display:flex; align-items:center; gap:.75rem; margin-bottom:1rem; padding:.5rem .75rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .form-breadcrumb .crumb-sep { color:#9ca3af; }
+        .form-breadcrumb .crumb-current { font-weight:600; color:#111827; }
+        .readonly-field { background:#f3f4f6; color:#374151; cursor:not-allowed; }
+        .stat-chips { display:flex; gap:.5rem; margin-bottom:.75rem; flex-wrap:wrap; }
+        .stat-chip { display:inline-flex; align-items:center; padding:4px 12px; border-radius:20px; font-size:.78rem; font-weight:600; }
+        .chip-total { background:rgba(46,49,146,.12); color:var(--gb-blue); }
+        .chip-active { background:#dcfce7; color:#166534; }
+        .chip-inactive { background:rgba(227,30,36,.12); color:var(--gb-red-dark); }
+    </style>
+</head>
+<body>
+
+    @await Html.PartialAsync("_AppHeader", pageTitle)
+
+    <main class="container">
+
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        @if (!Model.ShowForm)
+        {
+            int total = Model.Customers.Count;
+            int active = Model.Customers.Count(c => c.IsActive);
+            int inactive = total - active;
+
+            <div class="stat-chips">
+                <span class="stat-chip chip-total">Total: @total</span>
+                <span class="stat-chip chip-active">Active: @active</span>
+                <span class="stat-chip chip-inactive">Inactive: @inactive</span>
+            </div>
+
+            @await Html.PartialAsync("_MasterExcelPanel", "/CustomerMaster")
+
+            <div class="card">
+                <div class="card-header cust-list-header">
+                    <h2>Customer List</h2>
+                    <div class="right-controls">
+                        <input type="text" id="txtSearch" class="form-control" style="width:280px"
+                               placeholder="Search code / name / NTN…"
+                               onkeyup="searchCustomerTable(this.value)" />
+                        <a href="/CustomerMaster?newCustomer=true" class="btn btn-primary">+ New Customer</a>
+                    </div>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table" id="customerTable">
+                        <thead class="grid-header">
+                            <tr>
+                                <th>#</th>
+                                <th>Customer ID</th>
+                                <th>Name</th>
+                                <th>Search Name</th>
+                                <th>City</th>
+                                <th>Group</th>
+                                <th>NTN</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Customers.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="9" style="text-align:center; padding:2rem; color:#6b7280;">
+                                        No customers found.
+                                        <br />
+                                        <a href="/CustomerMaster?newCustomer=true" class="btn btn-primary" style="margin-top:.75rem;">+ Add First Customer</a>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                int rowNum = 0;
+                                foreach (var c in Model.Customers)
+                                {
+                                    rowNum++;
+                                    <tr class="@(rowNum % 2 == 0 ? "grid-alt-row" : "grid-row")">
+                                        <td>@rowNum</td>
+                                        <td><code style="font-size:.75rem;background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;">@c.CustomerCode</code></td>
+                                        <td><strong>@c.Name</strong></td>
+                                        <td>@c.SearchName</td>
+                                        <td>@c.CityName</td>
+                                        <td>@c.CustomerGroupName</td>
+                                        <td>@c.NTN</td>
+                                        <td>
+                                            <span class="badge @(c.IsActive ? "badge-success" : "badge-danger")">
+                                                @(c.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </td>
+                                        <td style="white-space:nowrap;">
+                                            <a href="/CustomerMaster?editId=@c.CustomerID" class="btn btn-secondary" style="padding:3px 12px; font-size:.8rem;">Edit</a>
+                                            @if (c.IsActive)
+                                            {
+                                                <form method="post" asp-page-handler="Delete" style="display:inline"
+                                                      onsubmit="return confirm('Remove this customer?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="deleteId" value="@c.CustomerID" />
+                                                    <button type="submit" class="btn btn-danger" style="padding:3px 10px; font-size:.8rem;">Remove</button>
+                                                </form>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <span class="record-count">Total Records: @Model.Customers.Count</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="form-breadcrumb">
+                <a href="/CustomerMaster" class="btn btn-secondary" style="padding:4px 14px;">&#8592; Back to List</a>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">@(Model.EditMode ? "Edit Customer" : "New Customer")</span>
+                @if (Model.EditMode)
+                {
+                    <span class="crumb-sep">–</span>
+                    <span style="color:#4b5563; font-size:.9rem;">@Model.Input.CustomerCode</span>
+                }
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>@(Model.EditMode ? "Edit Customer" : "Add Customer")</h2>
+                </div>
+
+                <form method="post" id="customerForm" novalidate onsubmit="return validateCustomerForm();">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="CustomerID" value="@Model.Input.CustomerID" />
+                    <input type="hidden" name="EditMode" value="@(Model.EditMode ? "true" : "false")" />
+
+                    <div class="card-body">
+                        <div class="form-grid">
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Basic Information</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Customer ID</label>
+                                <input type="text" class="form-control readonly-field" value="@Model.Input.CustomerCode" readonly />
+                                <small class="field-hint">Auto-generated (e.g. CUS000001)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Name <span class="required">*</span></label>
+                                <input type="text" name="Name" id="txtName" class="form-control"
+                                       value="@Model.Input.Name" maxlength="200" required
+                                       pattern="[a-zA-Z0-9\s\-_.&amp;]+"
+                                       onblur="syncSearchName()" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Search Name</label>
+                                <input type="text" name="SearchName" id="txtSearchName" class="form-control"
+                                       value="@Model.Input.SearchName" maxlength="200" />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Location</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Deal For Branch</label>
+                                <select name="DealForBranchID" class="form-control">
+                                    <option value="">-- Select Location --</option>
+                                    @foreach (var item in Model.Locations)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.DealForBranchID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>City</label>
+                                <select name="CityID" class="form-control">
+                                    <option value="">-- Select City --</option>
+                                    @foreach (var item in Model.Cities)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.CityID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Province</label>
+                                <select name="ProvinceID" class="form-control">
+                                    <option value="">-- Select Province --</option>
+                                    @foreach (var item in Model.Provinces)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ProvinceID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Customer Classification</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Mode of Delivery</label>
+                                <select name="ModeOfDeliveryID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.ModeOfDeliveries)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ModeOfDeliveryID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Group</label>
+                                <select name="CustomerGroupID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.CustomerGroups)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.CustomerGroupID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Cust Classification</label>
+                                <select name="CustomerClassID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.CustomerClasses)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.CustomerClassID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Method of Payment</label>
+                                <select name="MethodOfPaymentID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.MethodOfPayments)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.MethodOfPaymentID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Terms of Payment</label>
+                                <select name="TermsOfPaymentID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.TermsOfPayments)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.TermsOfPaymentID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Currency</label>
+                                <select name="CurrencyID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.Currencies)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.CurrencyID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Bill Preference</label>
+                                <select name="BillPreferenceID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.BillPreferences)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.BillPreferenceID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>FBR Status</label>
+                                <select name="FBRStatusID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.FBRStatuses)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.FBRStatusID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Sales Tax Group</label>
+                                <select name="TaxGroupID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.TaxGroups)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.TaxGroupID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Tax &amp; Registration</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>CNIC</label>
+                                <input type="text" name="CNIC" class="form-control" value="@Model.Input.CNIC" maxlength="20" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>NTN</label>
+                                <input type="text" name="NTN" class="form-control" value="@Model.Input.NTN"
+                                       maxlength="50" pattern="[a-zA-Z0-9\-]*" />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Options</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>CAP</label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="IsCAP" value="true" @(Model.Input.IsCAP ? "checked" : "") /> Yes
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Mandatory Credit Limit</label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="IsMandatoryCreditLimit" value="true" @(Model.Input.IsMandatoryCreditLimit ? "checked" : "") /> Yes
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Invoice Hold</label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="IsInvoiceHold" value="true" @(Model.Input.IsInvoiceHold ? "checked" : "") /> Yes
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Status</label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="IsActive" value="true" @(Model.Input.IsActive ? "checked" : "") /> Active
+                                </label>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Business &amp; Credit</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Total Business Potential</label>
+                                <input type="number" name="TotalBusinessPotential" class="form-control"
+                                       value="@Model.Input.TotalBusinessPotential" min="0" step="1" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Target Business Share %</label>
+                                <input type="number" name="TargetBusinessSharePercent" class="form-control"
+                                       value="@Model.Input.TargetBusinessSharePercent" min="0" max="100" step="0.01" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Target Business Amount</label>
+                                <input type="number" name="TargetBusinessAmount" class="form-control"
+                                       value="@Model.Input.TargetBusinessAmount" min="0" step="1" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Credit Limit</label>
+                                <input type="number" name="CreditLimit" class="form-control"
+                                       value="@Model.Input.CreditLimit" min="0" step="1" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>AHD Credit Limit</label>
+                                <input type="number" name="AHDCreditLimit" class="form-control"
+                                       value="@Model.Input.AHDCreditLimit" min="0" step="1" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>PHD Credit Limit</label>
+                                <input type="number" name="PHDCreditLimit" class="form-control"
+                                       value="@Model.Input.PHDCreditLimit" min="0" step="1" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>HHD Credit Limit</label>
+                                <input type="number" name="HHDCreditLimit" class="form-control"
+                                       value="@Model.Input.HHDCreditLimit" min="0" step="1" />
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="card-footer" style="display:flex; gap:.75rem;">
+                        <button type="submit" class="btn btn-primary">@(Model.EditMode ? "Update Customer" : "Save Customer")</button>
+                        <a href="/CustomerMaster" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    <script>
+        function searchCustomerTable(q) {
+            q = (q || '').toLowerCase();
+            document.querySelectorAll('#customerTable tbody tr').forEach(function (r) {
+                if (r.querySelector('td[colspan]')) return;
+                r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        function syncSearchName() {
+            var name = document.getElementById('txtName');
+            var search = document.getElementById('txtSearchName');
+            if (name && search && !search.value.trim())
+                search.value = name.value.trim();
+        }
+
+        function validateCustomerForm() {
+            var name = document.getElementById('txtName');
+            if (!name || !name.value.trim()) {
+                alert('Customer name is required.');
+                return false;
+            }
+            if (!/^[a-zA-Z0-9\s\-_.&]+$/.test(name.value.trim())) {
+                alert('Customer name must be alphanumeric.');
+                return false;
+            }
+            return true;
+        }
+    </script>
+</body>
+</html>

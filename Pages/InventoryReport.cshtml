@@ -1,0 +1,57 @@
+@page
+@model HRMS.Pages.InventoryReportModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body>
+@await Html.PartialAsync("_AppHeader", Model.PageTitle)
+<main class="container">
+    <div class="card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.75rem;">
+            <h2>Stock Valuation Report</h2>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                <form method="get" style="display:flex;gap:.5rem;">
+                    <input type="text" name="search" class="form-control" style="width:220px" placeholder="Search…" value="@Model.Search" />
+                    <button type="submit" class="btn btn-secondary">Filter</button>
+                </form>
+                <a href="/InventoryReport?handler=DownloadExcel&search=@Model.Search" class="btn btn-primary">Export Excel</a>
+                <a href="/InventoryMaster" class="btn btn-secondary">← Inventory</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <p style="margin-bottom:1rem;"><strong>Total Stock Value:</strong> @Model.TotalValue.ToString("N2")</p>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead class="grid-header">
+                        <tr>
+                            <th>Product Code</th><th>Product Name</th><th>Inventory Type</th>
+                            <th>Qty On Hand</th><th>Avg Unit Cost</th><th>Stock Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Records)
+                        {
+                            <tr>
+                                <td><code>@r.ProductCode</code></td>
+                                <td>@r.ProductName</td>
+                                <td>@r.InventoryType</td>
+                                <td>@r.QtyOnHand.ToString("N4")</td>
+                                <td>@r.AvgUnitCost.ToString("N4")</td>
+                                <td>@r.StockValue.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+@await Html.PartialAsync("_AppFooter")
+</body>
+</html>

@@ -1,0 +1,168 @@
+@page "/Home"
+@model HRMS.Pages.IndexModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS - @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body>
+    @await Html.PartialAsync("_AppHeader", Model.PageTitle)
+
+    <main class="container">
+        @if (Model.ShowProfileSyncWarning)
+        {
+            <div class="alert alert-warning">@Model.ProfileSyncMessage</div>
+        }
+
+        @if (Model.Slides.Count > 0)
+        {
+            <section class="home-gallery" aria-label="Image gallery">
+                <div class="home-gallery-slider" id="homeGallerySlider">
+                    @for (var i = 0; i < Model.Slides.Count; i++)
+                    {
+                        var slide = Model.Slides[i];
+                        <div class="home-gallery-slide @(i == 0 ? "active" : "")" data-index="@i">
+                            <img src="@slide.ImagePath" alt="@slide.Title" />
+                            @if (!string.IsNullOrWhiteSpace(slide.Title) || !string.IsNullOrWhiteSpace(slide.Description))
+                            {
+                                <div class="home-gallery-caption">
+                                    @if (!string.IsNullOrWhiteSpace(slide.Title))
+                                    {
+                                        <strong>@slide.Title</strong>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(slide.Description))
+                                    {
+                                        <span>@slide.Description</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (Model.Slides.Count > 1)
+                {
+                    <button type="button" class="home-gallery-nav home-gallery-prev" id="galleryPrev" aria-label="Previous slide">&#10094;</button>
+                    <button type="button" class="home-gallery-nav home-gallery-next" id="galleryNext" aria-label="Next slide">&#10095;</button>
+                    <div class="home-gallery-dots" id="galleryDots">
+                        @for (var i = 0; i < Model.Slides.Count; i++)
+                        {
+                            <button type="button" class="home-gallery-dot @(i == 0 ? "active" : "")" data-index="@i" aria-label="Go to slide @(i + 1)"></button>
+                        }
+                    </div>
+                }
+            </section>
+        }
+        else
+        {
+            <section class="home-welcome-banner">
+                <div class="home-welcome-text">
+                    <h2>Welcome to HRMS</h2>
+                    <p>Human Resource Management System — access HR processes and employee services from one place.</p>
+                </div>
+            </section>
+        }
+
+        <div class="quick-links-intro">
+            <p>Browse HR processes, announcements, and employee services.</p>
+        </div>
+
+        <section class="quick-links-section">
+            <div class="quick-links-section-header">
+                <h2>HR Processes &amp; Services</h2>
+                <span class="quick-links-count">@Model.ProcessLinks.Count links</span>
+            </div>
+            <div class="quick-links-grid">
+                @foreach (var link in Model.ProcessLinks)
+                {
+                    <a href="@link.Url" class="quick-link-card quick-link-card--process">
+                        <div class="quick-link-icon">@link.Icon</div>
+                        <div class="quick-link-body">
+                            <h3>@link.Title</h3>
+                            <p>@link.Description</p>
+                            <span class="quick-link-badge">@link.Category</span>
+                        </div>
+                        <span class="quick-link-arrow">&#8594;</span>
+                    </a>
+                }
+            </div>
+        </section>
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    @if (Model.ShowAccessDeniedPopup)
+    {
+        <div id="accessDeniedPopup" class="notif-popup-overlay" role="alertdialog" aria-modal="true" aria-labelledby="accessDeniedTitle">
+            <div class="notif-popup-card" style="max-width:480px; border-top-color:#dc2626;">
+                <div class="notif-popup-header" style="background:linear-gradient(90deg,#b91c1c 0%,#dc2626 100%);">
+                    <h3 id="accessDeniedTitle">Access Restricted</h3>
+                    <button type="button" class="notif-popup-close" onclick="closeAccessDeniedPopup()" aria-label="Close">&times;</button>
+                </div>
+                <div class="notif-popup-body">
+                    <p class="notif-popup-preview" style="margin:0;">@Model.AccessDeniedMessage</p>
+                </div>
+                <div class="notif-popup-footer">
+                    <button type="button" class="btn btn-primary" onclick="closeAccessDeniedPopup()">OK</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            function closeAccessDeniedPopup() {
+                var el = document.getElementById('accessDeniedPopup');
+                if (el) el.style.display = 'none';
+            }
+        </script>
+    }
+
+    @if (Model.Slides.Count > 1)
+    {
+        <script>
+            (function () {
+                var slides = document.querySelectorAll('.home-gallery-slide');
+                var dots = document.querySelectorAll('.home-gallery-dot');
+                var current = 0;
+                var timer = null;
+
+                function showSlide(index) {
+                    current = (index + slides.length) % slides.length;
+                    slides.forEach(function (s, i) { s.classList.toggle('active', i === current); });
+                    dots.forEach(function (d, i) { d.classList.toggle('active', i === current); });
+                }
+
+                function next() { showSlide(current + 1); }
+                function prev() { showSlide(current - 1); }
+
+                function startAuto() {
+                    stopAuto();
+                    timer = setInterval(next, 5000);
+                }
+
+                function stopAuto() {
+                    if (timer) { clearInterval(timer); timer = null; }
+                }
+
+                document.getElementById('galleryNext')?.addEventListener('click', function () { next(); startAuto(); });
+                document.getElementById('galleryPrev')?.addEventListener('click', function () { prev(); startAuto(); });
+                dots.forEach(function (dot) {
+                    dot.addEventListener('click', function () {
+                        showSlide(parseInt(dot.getAttribute('data-index'), 10));
+                        startAuto();
+                    });
+                });
+
+                var gallery = document.getElementById('homeGallerySlider');
+                if (gallery) {
+                    gallery.addEventListener('mouseenter', stopAuto);
+                    gallery.addEventListener('mouseleave', startAuto);
+                }
+
+                startAuto();
+            })();
+        </script>
+    }
+</body>
+</html>

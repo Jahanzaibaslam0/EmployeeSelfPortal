@@ -1,0 +1,26 @@
+@model string
+@{
+    var pagePath = Model;
+}
+<style>
+    .excel-import-row { display:flex; flex-wrap:wrap; align-items:flex-end; gap:.75rem; }
+    .excel-import-form { display:flex; flex-wrap:wrap; align-items:flex-end; gap:.75rem; flex:1; min-width:280px; }
+    .excel-file-group { margin:0; min-width:240px; flex:1; }
+    .excel-import-hint { color:#6b7280; display:block; margin-top:.5rem; font-size:.78rem; }
+</style>
+<div class="card excel-import-card" style="margin-bottom:1rem;">
+    <div class="card-body">
+        <div class="excel-import-row">
+            <form method="post" action="@(pagePath)?handler=ImportExcel" enctype="multipart/form-data" class="excel-import-form">
+                @Html.AntiForgeryToken()
+                <div class="form-group excel-file-group">
+                    <label>Import from Excel</label>
+                    <input type="file" name="excelFile" class="form-control" accept=".xlsx,.xls" required />
+                </div>
+                <button type="submit" class="btn btn-primary">Import Excel</button>
+            </form>
+            <a href="@(pagePath)?handler=ExportExcel" class="btn btn-secondary">Export Excel</a>
+        </div>
+        <small class="excel-import-hint">Export downloads the current data as a template. Re-import to add or update records matched by ID or Code.</small>
+    </div>
+</div>

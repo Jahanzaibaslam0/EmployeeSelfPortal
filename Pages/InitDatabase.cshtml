@@ -1,0 +1,48 @@
+@page
+@model HRMS.Pages.InitDatabaseModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Initialize Database</title>
+    <style>
+        body { font-family: Segoe UI, Arial, sans-serif; background:#f4f6fb; margin:0; padding:2rem; }
+        .card { max-width:680px; margin:0 auto; background:#fff; border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,.08); overflow:hidden; }
+        .card-header { padding:1rem 1.25rem; border-bottom:4px solid #c8102e; color:#2e3192; }
+        .card-body { padding:1.25rem; }
+        .ok { background:#ecfdf5; border-left:4px solid #059669; color:#065f46; padding:.9rem 1rem; margin-bottom:1rem; white-space:pre-wrap; }
+        .err { background:#fef2f2; border-left:4px solid #dc2626; color:#991b1b; padding:.9rem 1rem; margin-bottom:1rem; white-space:pre-wrap; }
+        .btn { display:inline-block; padding:.55rem 1rem; border-radius:6px; text-decoration:none; font-weight:600; margin-right:.5rem; }
+        .btn-primary { background:#c8102e; color:#fff; border:0; cursor:pointer; }
+        .btn-secondary { background:#e5e7eb; color:#111827; }
+        code { background:#f3f4f6; padding:1px 5px; border-radius:4px; }
+        .muted { color:#6b7280; font-size:.9rem; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="card-header"><h2 style="margin:0;">Initialize / Repair Database</h2></div>
+    <div class="card-body">
+        @if (!string.IsNullOrEmpty(Model.Message))
+        {
+            <div class="@(Model.AlertType == "success" ? "ok" : "err")">@Model.Message</div>
+        }
+        else
+        {
+            <p class="muted">Working… creating tables and sample data.</p>
+        }
+
+        <p>Creates missing core tables (<code>tblEmployee</code>, departments, users…), seeds admin, and a sample employee.</p>
+
+        <p>
+            <a class="btn btn-primary" href="/InitDatabase?run=1">Run Initialize Again</a>
+            <a class="btn btn-secondary" href="/Login">Go to Login</a>
+        </p>
+
+        <p class="muted">Login after success: <strong>admin</strong> / <strong>Admin@123</strong></p>
+    </div>
+</div>
+</body>
+</html>

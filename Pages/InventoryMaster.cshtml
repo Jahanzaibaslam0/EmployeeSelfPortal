@@ -1,0 +1,103 @@
+@page
+@model HRMS.Pages.InventoryMasterModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .inv-stats { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; }
+        .inv-stat { background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:.75rem 1.25rem; min-width:160px; }
+        .inv-stat .label { font-size:.75rem; color:#6b7280; }
+        .inv-stat .value { font-size:1.2rem; font-weight:700; color:var(--gb-blue); }
+        .inv-actions { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1rem; }
+        .qty-pos { color:#166534; font-weight:600; }
+        .qty-zero { color:#9ca3af; }
+        .qty-neg { color:#991b1b; font-weight:600; }
+    </style>
+</head>
+<body>
+@await Html.PartialAsync("_AppHeader", Model.PageTitle)
+<main class="container">
+    <div class="inv-stats">
+        <div class="inv-stat"><span class="label">Products in Stock</span><div class="value">@Model.ProductCount</div></div>
+        <div class="inv-stat"><span class="label">Total Stock Value</span><div class="value">@Model.TotalStockValue.ToString("N2")</div></div>
+    </div>
+    <div class="inv-actions">
+        <a href="/GoodsReceiptMaster?newReceipt=true" class="btn btn-primary">+ Goods Receipt (Purchase)</a>
+        <a href="/GoodsIssueMaster?newIssue=true" class="btn btn-primary">+ Goods Issue (Sales)</a>
+        <a href="/InventoryReport" class="btn btn-secondary">Inventory Report</a>
+        <a href="/PurchaseOrderMaster" class="btn btn-secondary">Purchase Orders</a>
+        <a href="/SalesOrderMaster" class="btn btn-secondary">Sales Orders</a>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">
+            <h2>Stock On Hand</h2>
+            <form method="get" style="display:flex;gap:.5rem;">
+                <input type="text" name="search" class="form-control" style="width:240px" placeholder="Search product…" value="@Model.Search" />
+                <button type="submit" class="btn btn-secondary">Search</button>
+            </form>
+        </div>
+        <div class="card-body table-responsive">
+            <table class="data-table">
+                <thead class="grid-header">
+                    <tr>
+                        <th>Product Code</th><th>Product Name</th><th>Type</th>
+                        <th>Qty On Hand</th><th>Avg Cost</th><th>Stock Value</th>
+                        <th>Last Receipt</th><th>Last Issue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Stock)
+                    {
+                        <tr>
+                            <td><code>@s.ProductCode</code></td>
+                            <td>@s.ProductName</td>
+                            <td>@s.InventoryType</td>
+                            <td class="@(s.QtyOnHand > 0 ? "qty-pos" : "qty-zero")">@s.QtyOnHand.ToString("N4")</td>
+                            <td>@s.AvgUnitCost.ToString("N4")</td>
+                            <td>@s.StockValue.ToString("N2")</td>
+                            <td>@(s.LastReceiptDate?.ToString("dd MMM yyyy") ?? "—")</td>
+                            <td>@(s.LastIssueDate?.ToString("dd MMM yyyy") ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h2>Recent Inventory Transactions</h2></div>
+        <div class="card-body table-responsive">
+            <table class="data-table">
+                <thead class="grid-header">
+                    <tr>
+                        <th>Date</th><th>Type</th><th>Product</th><th>Qty</th><th>Unit Cost</th>
+                        <th>Reference</th><th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Transactions)
+                    {
+                        <tr>
+                            <td>@t.TransactionDate.ToString("dd MMM yyyy HH:mm")</td>
+                            <td>@t.TransactionType</td>
+                            <td>@t.ProductCode – @t.ProductName</td>
+                            <td class="@(t.Qty >= 0 ? "qty-pos" : "qty-neg")">@t.Qty.ToString("N4")</td>
+                            <td>@(t.UnitCost?.ToString("N4") ?? "—")</td>
+                            <td>@t.ReferenceType @t.ReferenceInfo</td>
+                            <td>@t.CreatedByUsername</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+@await Html.PartialAsync("_AppFooter")
+</body>
+</html>

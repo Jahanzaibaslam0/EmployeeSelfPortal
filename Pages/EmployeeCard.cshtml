@@ -1,0 +1,215 @@
+@page
+@model HRMS.Pages.EmployeeCardModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=13" />
+</head>
+<body class="employee-card-page">
+    @await Html.PartialAsync("_AppHeader", Model.PageTitle)
+
+    <main class="container employee-card-main">
+        @if (Model.ShowPicker)
+        {
+            <div class="card no-print">
+                <div class="card-header">
+                    <h2>Select Employee for ID Card</h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted" style="margin-bottom:1rem;">Choose an employee to preview, print, or download their identity card.</p>
+                    <div class="employee-card-picker">
+                        <label for="ddlEmployeeCard">Employee</label>
+                        <select id="ddlEmployeeCard" class="form-control">
+                            <option value="">— Select employee —</option>
+                            @foreach (var emp in Model.Employees)
+                            {
+                                <option value="@emp.EmployeeID">@emp.EmployeeCode – @emp.FullName (@emp.DepartmentName)</option>
+                            }
+                        </select>
+                        <button type="button" id="btnViewCard" class="btn btn-primary" disabled>View Card</button>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="card no-print">
+                <div class="card-body">
+                    <div class="alert alert-error">@Model.ErrorMessage</div>
+                    <a href="/EmployeeMaster" class="btn btn-secondary">Back to Employee Master</a>
+                </div>
+            </div>
+        }
+        else if (Model.Card != null)
+        {
+            var card = Model.Card;
+            <div class="employee-card-toolbar no-print">
+                <div class="toolbar-left">
+                    @if (Model.CanBrowseCards)
+                    {
+                        <a href="/EmployeeCard" class="btn btn-secondary">← Back to List</a>
+                    }
+                    else
+                    {
+                        <a href="/UserProfile" class="btn btn-secondary">← Back</a>
+                    }
+                    @if (Model.CanBrowseCards)
+                    {
+                        <a href="/EmployeeMaster" class="btn btn-secondary">Employee Master</a>
+                    }
+                </div>
+                <div class="toolbar-right">
+                    <button type="button" class="btn btn-primary" id="btnPrintCard">Print</button>
+                    <button type="button" class="btn btn-primary" id="btnDownloadPdf">Download PDF</button>
+                </div>
+            </div>
+
+            <div class="employee-card-stage" id="employeeCardStage">
+                <article class="id-card @(card.IsVisitorCard ? "id-card--visitor" : "id-card--employee")" id="idCardPrintArea">
+                    <header class="id-card__header">
+                        <div class="id-card__brand">
+                            <img src="/images/gb-logo.png" alt="Company logo" class="id-card__logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                            <div class="id-card__logo-fallback" style="display:none;">GB</div>
+                            <div class="id-card__company">
+                                @if (!string.IsNullOrWhiteSpace(card.CompanyName))
+                                {
+                                    <span class="id-card__company-name">@card.CompanyName</span>
+                                }
+                                else
+                                {
+                                    <span class="id-card__company-name">Ghazi Brothers</span>
+                                }
+                                <span class="id-card__company-tag">Human Resource Management System</span>
+                            </div>
+                        </div>
+                        <span class="id-card__type-badge">@card.CardTitle</span>
+                    </header>
+
+                    <div class="id-card__body">
+                        <div class="id-card__content">
+                            <div class="id-card__details">
+                                <h1 class="id-card__name">@card.FullName</h1>
+                                <p class="id-card__designation">@(string.IsNullOrWhiteSpace(card.Designation) ? "—" : card.Designation)</p>
+
+                                <dl class="id-card__fields">
+                                    <div class="id-card__field">
+                                        <dt>Employee ID</dt>
+                                        <dd>@(string.IsNullOrWhiteSpace(card.EmployeeCode) ? "—" : card.EmployeeCode)</dd>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(card.DepartmentName))
+                                    {
+                                        <div class="id-card__field">
+                                            <dt>Department</dt>
+                                            <dd>@card.DepartmentName</dd>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(card.OfficeLocation))
+                                    {
+                                        <div class="id-card__field">
+                                            <dt>Office Location</dt>
+                                            <dd>@card.OfficeLocation</dd>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(card.Email))
+                                    {
+                                        <div class="id-card__field">
+                                            <dt>Email</dt>
+                                            <dd>@card.Email</dd>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(card.Phone))
+                                    {
+                                        <div class="id-card__field">
+                                            <dt>Contact</dt>
+                                            <dd>@card.Phone</dd>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(card.BloodGroup))
+                                    {
+                                        <div class="id-card__field">
+                                            <dt>Blood Group</dt>
+                                            <dd>@card.BloodGroup</dd>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(card.DateOfJoining))
+                                    {
+                                        <div class="id-card__field">
+                                            <dt>Date of Joining</dt>
+                                            <dd>@card.DateOfJoining</dd>
+                                        </div>
+                                    }
+                                    @if (card.IsVisitorCard && !string.IsNullOrWhiteSpace(card.ValidityPeriod))
+                                    {
+                                        <div class="id-card__field id-card__field--highlight">
+                                            <dt>Validity</dt>
+                                            <dd>@card.ValidityPeriod</dd>
+                                        </div>
+                                    }
+                                </dl>
+                            </div>
+
+                            
+                        </div>
+
+                        <aside class="id-card__photo-panel" aria-label="Profile picture">
+                            <span class="id-card__photo-label">Profile Picture</span>
+                            <div class="id-card__photo-slot" id="employeePhotoSlot">
+                                @if (!string.IsNullOrWhiteSpace(card.PhotoUrl))
+                                {
+                                    <img src="@card.PhotoUrl" alt="@card.FullName" class="id-card__photo" id="cardEmployeePhoto" />
+                                }
+                                else
+                                {
+                                    <img src="/images/default-avatar.svg" alt="No profile photo" class="id-card__photo id-card__photo--default" />
+                                }
+                            </div>
+                        </aside>
+                    </div>
+
+                    <footer class="id-card__footer">
+                        <span>This card is property of @(string.IsNullOrWhiteSpace(card.CompanyName) ? "Ghazi Brothers" : card.CompanyName).</span>
+                        @if (!string.IsNullOrWhiteSpace(card.Status))
+                        {
+                            <span class="id-card__status id-card__status--@(card.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) ? "active" : "inactive")">@card.Status</span>
+                        }
+                    </footer>
+                </article>
+            </div>
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    @if (Model.Card != null)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+        <script src="/js/employee-card.js?v=3"></script>
+        <script>
+            window.hrmsEmployeeCard = {
+                qrPayload: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Card.QrPayload)),
+                defaultAvatarUrl: '/images/default-avatar.svg'
+            };
+        </script>
+    }
+    @if (Model.ShowPicker)
+    {
+        <script>
+            (function () {
+                var ddl = document.getElementById('ddlEmployeeCard');
+                var btn = document.getElementById('btnViewCard');
+                if (!ddl || !btn) return;
+                ddl.addEventListener('change', function () { btn.disabled = !ddl.value; });
+                btn.addEventListener('click', function () {
+                    if (ddl.value) window.location.href = '/EmployeeCard?id=' + encodeURIComponent(ddl.value);
+                });
+            })();
+        </script>
+    }
+</body>
+</html>
