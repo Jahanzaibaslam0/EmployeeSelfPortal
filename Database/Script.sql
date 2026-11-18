@@ -194,10 +194,26 @@ IF COL_LENGTH('tblEmployee', 'DisplayName') IS NULL
     ALTER TABLE tblEmployee ADD DisplayName NVARCHAR(200) NULL;
 IF COL_LENGTH('tblEmployee', 'NationalIDNumber') IS NULL
     ALTER TABLE tblEmployee ADD NationalIDNumber NVARCHAR(50) NULL;
+IF COL_LENGTH('tblEmployee', 'BiometricID') IS NULL
+    ALTER TABLE tblEmployee ADD BiometricID INT NULL;
 IF COL_LENGTH('tblEmployee', 'RegionID') IS NULL
     ALTER TABLE tblEmployee ADD RegionID INT NULL;
 IF COL_LENGTH('tblEmployee', 'LocationID') IS NULL
     ALTER TABLE tblEmployee ADD LocationID INT NULL;
+IF COL_LENGTH('tblEmployee', 'DealForBranchID') IS NULL
+    ALTER TABLE tblEmployee ADD DealForBranchID INT NULL;
+IF COL_LENGTH('tblEmployee', 'SecondaryLocationID') IS NULL
+    ALTER TABLE tblEmployee ADD SecondaryLocationID INT NULL;
+IF COL_LENGTH('tblEmployee', 'WorkArrangementID') IS NULL
+    ALTER TABLE tblEmployee ADD WorkArrangementID INT NULL;
+IF COL_LENGTH('tblEmployee', 'ConvenienceAllowance') IS NULL
+    ALTER TABLE tblEmployee ADD ConvenienceAllowance DECIMAL(18, 2) NULL;
+IF COL_LENGTH('tblEmployee', 'AttendanceMethodID') IS NULL
+    ALTER TABLE tblEmployee ADD AttendanceMethodID INT NULL;
+IF COL_LENGTH('tblEmployee', 'DesignationID') IS NULL
+    ALTER TABLE tblEmployee ADD DesignationID INT NULL;
+IF COL_LENGTH('tblEmployee', 'PrivilegeTier') IS NULL
+    ALTER TABLE tblEmployee ADD PrivilegeTier NVARCHAR(30) NULL;
 IF COL_LENGTH('tblEmployee', 'JobID') IS NULL
     ALTER TABLE tblEmployee ADD JobID INT NULL;
 IF COL_LENGTH('tblEmployee', 'WorkerLocationID') IS NULL
@@ -468,6 +484,56 @@ BEGIN
         IsActive BIT NOT NULL DEFAULT 1,
         CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
         ModifiedOn DATETIME NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblDesignation' AND type = 'U')
+BEGIN
+    CREATE TABLE tblDesignation (
+        DesignationID INT IDENTITY(1,1) PRIMARY KEY,
+        TitleID INT NOT NULL,
+        GradeID INT NOT NULL,
+        EmployeeCategoryID INT NOT NULL,
+        ProbationDays INT NULL,
+        PrivilegeCode NVARCHAR(30) NOT NULL DEFAULT N'NONE',
+        PrivilegeTier NVARCHAR(30) NOT NULL DEFAULT N'None',
+        PositionTenure NVARCHAR(30) NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+        ModifiedOn DATETIME NULL,
+        CreatedByUserID INT NULL,
+        ModifiedByUserID INT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblEmployeeCategory' AND type = 'U')
+BEGIN
+    CREATE TABLE tblEmployeeCategory (
+        EmployeeCategoryID INT IDENTITY(1,1) PRIMARY KEY,
+        EmployeeCategoryName NVARCHAR(150) NOT NULL,
+        AliasName NVARCHAR(50) NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+        ModifiedOn DATETIME NULL,
+        CreatedByUserID INT NULL,
+        ModifiedByUserID INT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblAttendanceMethod' AND type = 'U')
+BEGIN
+    CREATE TABLE tblAttendanceMethod (
+        AttendanceMethodID INT IDENTITY(1,1) PRIMARY KEY,
+        AttendanceMethodName NVARCHAR(100) NOT NULL UNIQUE,
+        AliasName NVARCHAR(50) NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+        ModifiedOn DATETIME NULL,
+        CreatedByUserID INT NULL,
+        ModifiedByUserID INT NULL
     );
 END
 GO
@@ -1556,11 +1622,22 @@ BEGIN
         Whatsapp             NVARCHAR(50) NULL,
         URL                  NVARCHAR(250) NULL,
         Fax                  NVARCHAR(50) NULL,
+        VendorID             INT NULL,
+        EmployeeID           INT NULL,
+        GuestName            NVARCHAR(200) NULL,
         CreatedOn            DATETIME NOT NULL DEFAULT GETDATE(),
         ModifiedOn           DATETIME NULL,
         CreatedByUserID      INT NULL,
         ModifiedByUserID     INT NULL
     );
+END
+GO
+
+IF OBJECT_ID(N'tblContactMaster', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'tblContactMaster', N'VendorID') IS NULL ALTER TABLE tblContactMaster ADD VendorID INT NULL;
+    IF COL_LENGTH(N'tblContactMaster', N'EmployeeID') IS NULL ALTER TABLE tblContactMaster ADD EmployeeID INT NULL;
+    IF COL_LENGTH(N'tblContactMaster', N'GuestName') IS NULL ALTER TABLE tblContactMaster ADD GuestName NVARCHAR(200) NULL;
 END
 GO
 
@@ -1579,6 +1656,108 @@ BEGIN
         ModifiedOn                DATETIME NULL,
         CreatedByUserID           INT NULL,
         ModifiedByUserID          INT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblContactCountry' AND type = 'U')
+BEGIN
+    CREATE TABLE tblContactCountry (
+        CountryID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        CountryName NVARCHAR(100) NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+        CreatedByUserID INT NULL,
+        ModifiedOn DATETIME NULL,
+        ModifiedByUserID INT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblContactState' AND type = 'U')
+BEGIN
+    CREATE TABLE tblContactState (
+        StateID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        CountryID INT NOT NULL,
+        StateName NVARCHAR(100) NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+        CreatedByUserID INT NULL,
+        ModifiedOn DATETIME NULL,
+        ModifiedByUserID INT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblContactPostal' AND type = 'U')
+BEGIN
+    CREATE TABLE tblContactPostal (
+        PostalID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        StateID INT NOT NULL,
+        PostalCode NVARCHAR(20) NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+        CreatedByUserID INT NULL,
+        ModifiedOn DATETIME NULL,
+        ModifiedByUserID INT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblContactStreet' AND type = 'U')
+BEGIN
+    CREATE TABLE tblContactStreet (
+        StreetID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        PostalID INT NOT NULL,
+        StreetName NVARCHAR(200) NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+        CreatedByUserID INT NULL,
+        ModifiedOn DATETIME NULL,
+        ModifiedByUserID INT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblContactLocationSetup' AND type = 'U')
+BEGIN
+    CREATE TABLE tblContactLocationSetup (
+        LocationSetupID   INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Country           NVARCHAR(100) NOT NULL,
+        State             NVARCHAR(100) NOT NULL,
+        PostalCode        NVARCHAR(20)  NOT NULL,
+        Fax               NVARCHAR(50)  NULL,
+        Latitude          DECIMAL(10,7) NULL,
+        Longitude         DECIMAL(11,7) NULL,
+        IsActive          BIT NOT NULL DEFAULT 1,
+        CreatedOn         DATETIME NOT NULL DEFAULT GETDATE(),
+        CreatedByUserID   INT NULL,
+        ModifiedOn        DATETIME NULL,
+        ModifiedByUserID  INT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblContactAddress' AND type = 'U')
+BEGIN
+    CREATE TABLE tblContactAddress (
+        AddressID         INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        ContactID         INT NOT NULL,
+        CountryID         INT NULL,
+        StateID           INT NULL,
+        PostalID          INT NULL,
+        StreetID          INT NULL,
+        AddressLine       NVARCHAR(500) NULL,
+        Latitude          DECIMAL(10,7) NULL,
+        Longitude         DECIMAL(11,7) NULL,
+        IsBilling         BIT NOT NULL DEFAULT 0,
+        IsShipping        BIT NOT NULL DEFAULT 0,
+        IsPrimary         BIT NOT NULL DEFAULT 0,
+        SortOrder         INT NOT NULL DEFAULT 1,
+        CreatedOn         DATETIME NOT NULL DEFAULT GETDATE(),
+        CreatedByUserID   INT NULL,
+        ModifiedOn        DATETIME NULL,
+        ModifiedByUserID  INT NULL
     );
 END
 GO
@@ -1819,18 +1998,19 @@ INSERT INTO @AuditTables (TableName) VALUES
     ('tblDivision'),('tblDepartment'),('tblEmployee'),
     ('tblGender'),('tblBloodGroup'),('tblBenefitEntitlement'),('tblExpenseCategory'),
     ('tblBankMaster'),('tblBankGroup'),('tblCurrency'),('tblReligion'),('tblNationality'),('tblLanguage'),
-    ('tblUnit'),('tblLocation'),('tblRegion'),('tblWing'),('tblGrade'),
+    ('tblUnit'),('tblLocation'),('tblAttendanceMethod'),('tblRegion'),('tblWing'),('tblGrade'),
     ('tblEmploymentType'),('tblDesignationLevel'),('tblCostCenter'),('tblEmploymentStatus'),
     ('tblBusinessSegment'),('tblBusinessUnit'),('tblWorkforceSegment'),
     ('tblEmployeeContact'),('tblEmployeeAddress'),('tblEmployeeFamilyMember'),('tblEmployeeBank'),
     ('tblEmployeeEducation'),('tblEmployeeCertificate'),
-    ('tblSkill'),('tblWorkerCategory'),('tblLegalEntity'),('tblSalesTeam'),
+    ('tblSkill'),('tblWorkerCategory'),('tblEmployeeCategory'),('tblDesignation'),('tblLegalEntity'),('tblSalesTeam'),
     ('tblWorkLocationType'),('tblWorkArrangement'),('tblExtension'),
     ('tblCity'),('tblProvince'),('tblSalesGroup'),('tblWorkerLocation'),
     ('tblJob'),('tblBenefit'),('tblUser'),('tblAppForm'),('tblUserPermission'),
     ('tblExpense'),('tblExpenseDetail'),('tblEmployeePerformance'),('tblEmployeeTraining'),('tblRecruitment'),
     ('tblModeOfDelivery'),('tblMethodOfPayment'),('tblCustomerGroup'),('tblTermsOfPayment'),
     ('tblCustomerClass'),('tblBillPreference'),('tblTaxGroup'),('tblFBRStatus'),('tblCustomer'),('tblContactMaster'),('tblContactGhaziResponsible'),
+    ('tblContactLocationSetup'),('tblContactCountry'),('tblContactState'),('tblContactPostal'),('tblContactStreet'),('tblContactAddress'),
     ('tblProductNature'),('tblItemRegistered'),('tblBrandCode'),('tblBrandGroup'),('tblProductGroup'),('tblProductSalesGroup'),
     ('tblItemGroup'),('tblSalesCategory'),('tblProductDivision'),('tblProductTeam'),('tblHSCode'),('tblInventoryType'),('tblUnitOfMeasure'),('tblProduct'),
     ('tblInvoice'),('tblInvoiceItem');

@@ -105,6 +105,9 @@ IF OBJECT_ID(N'tblEmployeeDocument', N'U') IS NOT NULL AND COL_LENGTH(N'tblEmplo
     ALTER TABLE tblEmployeeDocument ADD CreatedByUserID INT NULL;
 GO
 
+:r Production_ContactAddress_Patch.sql
+GO
+
 /*--------------------------------------------------------------------------------------------------
   SECTION 6 – SEED: APPLICATION FORMS (mirrors AppForms.All / StartupMigrations.Seed)
 --------------------------------------------------------------------------------------------------*/
@@ -169,7 +172,9 @@ BEGIN
             (N'GradeSetup', N'Grade Setup', N'/GradeSetup.aspx', N'Employee Setup', 33),
             (N'EmploymentTypeSetup', N'Employment Type Setup', N'/EmploymentTypeSetup.aspx', N'Employee Setup', 34),
             (N'DesignationLevelSetup', N'Designation Level Setup', N'/DesignationLevelSetup.aspx', N'Employee Setup', 35),
+            (N'DesignationSetup', N'Designation Setup', N'/DesignationSetup.aspx', N'Employee Setup', 36),
             (N'TitleSetup', N'Title Setup', N'/TitleSetup.aspx', N'Employee Setup', 36),
+            (N'EmployeeCategorySetup', N'Employee Category Setup', N'/EmployeeCategorySetup.aspx', N'Employee Setup', 43),
             (N'EmploymentStatusSetup', N'Employment Status Setup', N'/EmploymentStatusSetup.aspx', N'Employee Setup', 37),
             (N'BenefitSetup', N'Benefit Setup', N'/BenefitSetup.aspx', N'Employee Setup', 38),
             (N'BenefitEntitlementSetup', N'Benefit Entitlement Setup', N'/BenefitEntitlementSetup.aspx', N'Employee Setup', 39),
@@ -180,6 +185,7 @@ BEGIN
             (N'JobSetup', N'Job Setup', N'/JobSetup.aspx', N'Employee Setup', 44),
             (N'WorkerLocationSetup', N'Worker Location Setup', N'/WorkerLocationSetup.aspx', N'Employee Setup', 45),
             (N'DocumentTypeSetup', N'Document Type Setup', N'/DocumentTypeSetup.aspx', N'Employee Setup', 46),
+            (N'AttendanceMethodSetup', N'Attendance Method Setup', N'/AttendanceMethodSetup.aspx', N'Employee Setup', 47),
             (N'ModeOfDeliverySetup', N'Mode of Delivery Setup', N'/ModeOfDeliverySetup.aspx', N'Customer Setup', 60),
             (N'MethodOfPaymentSetup', N'Method of Payment Setup', N'/MethodOfPaymentSetup.aspx', N'Customer Setup', 61),
             (N'CustomerGroupSetup', N'Customer Group Setup', N'/CustomerGroupSetup.aspx', N'Customer Setup', 62),
@@ -188,6 +194,11 @@ BEGIN
             (N'BillPreferenceSetup', N'Bill Preference Setup', N'/BillPreferenceSetup.aspx', N'Customer Setup', 65),
             (N'TaxGroupSetup', N'Tax Group Setup', N'/TaxGroupSetup.aspx', N'Customer Setup', 66),
             (N'FBRStatusSetup', N'FBR Status Setup', N'/FBRStatusSetup.aspx', N'Customer Setup', 67),
+            (N'CountrySetup', N'Country Setup', N'/CountrySetup.aspx', N'Customer Setup', 68),
+            (N'StateSetup', N'State Setup', N'/StateSetup.aspx', N'Customer Setup', 69),
+            (N'PostalSetup', N'Postal Setup', N'/PostalSetup.aspx', N'Customer Setup', 70),
+            (N'StreetSetup', N'Street Setup', N'/StreetSetup.aspx', N'Customer Setup', 71),
+            (N'ContactLocationSetup', N'Contact Address Lookups', N'/ContactLocationSetup.aspx', N'Customer Setup', 72),
             (N'ProductNatureSetup', N'Product Nature Setup', N'/ProductNatureSetup.aspx', N'Product Setup', 70),
             (N'InventoryTypeSetup', N'Inventory Type Setup', N'/InventoryTypeSetup.aspx', N'Product Setup', 71),
             (N'ItemRegisteredSetup', N'Item Registered Setup', N'/ItemRegisteredSetup.aspx', N'Product Setup', 72),

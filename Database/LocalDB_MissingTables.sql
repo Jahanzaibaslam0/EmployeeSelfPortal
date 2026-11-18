@@ -75,6 +75,37 @@ CREATE TABLE tblTitle (
 );
 GO
 
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblEmployeeCategory' AND type = 'U')
+CREATE TABLE tblEmployeeCategory (
+    EmployeeCategoryID   INT IDENTITY(1,1) PRIMARY KEY,
+    EmployeeCategoryName NVARCHAR(150) NOT NULL,
+    AliasName            NVARCHAR(50)  NULL,
+    IsActive             BIT NOT NULL DEFAULT 1,
+    CreatedOn            DATETIME NOT NULL DEFAULT GETDATE(),
+    ModifiedOn           DATETIME NULL,
+    CreatedByUserID INT NULL,
+    ModifiedByUserID INT NULL
+);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblDesignation' AND type = 'U')
+CREATE TABLE tblDesignation (
+    DesignationID INT IDENTITY(1,1) PRIMARY KEY,
+    TitleID INT NOT NULL,
+    GradeID INT NOT NULL,
+    EmployeeCategoryID INT NOT NULL,
+    ProbationDays INT NULL,
+    PrivilegeCode NVARCHAR(30) NOT NULL DEFAULT N'NONE',
+    PrivilegeTier NVARCHAR(30) NOT NULL DEFAULT N'None',
+    PositionTenure NVARCHAR(30) NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+    ModifiedOn DATETIME NULL,
+    CreatedByUserID INT NULL,
+    ModifiedByUserID INT NULL
+);
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblJob' AND type = 'U')
 CREATE TABLE tblJob (
     JobID            INT IDENTITY(1,1) PRIMARY KEY,
@@ -232,7 +263,9 @@ CREATE TABLE tblPositionWorkerAssignment (
     Reason                     NVARCHAR(500) NULL,
     SortOrder                  INT NOT NULL DEFAULT 1,
     CreatedOn                  DATETIME NOT NULL DEFAULT GETDATE(),
-    CreatedByUserID            INT NULL
+    CreatedByUserID            INT NULL,
+    ModifiedOn                 DATETIME NULL,
+    ModifiedByUserID           INT NULL
 );
 GO
 
@@ -492,6 +525,13 @@ BEGIN
     IF COL_LENGTH('tblEmployee','DivisionID') IS NULL ALTER TABLE tblEmployee ADD DivisionID INT NULL;
     IF COL_LENGTH('tblEmployee','SalesTeamID') IS NULL ALTER TABLE tblEmployee ADD SalesTeamID INT NULL;
     IF COL_LENGTH('tblEmployee','CostCenterID') IS NULL ALTER TABLE tblEmployee ADD CostCenterID INT NULL;
+    IF COL_LENGTH('tblEmployee','DealForBranchID') IS NULL ALTER TABLE tblEmployee ADD DealForBranchID INT NULL;
+    IF COL_LENGTH('tblEmployee','SecondaryLocationID') IS NULL ALTER TABLE tblEmployee ADD SecondaryLocationID INT NULL;
+    IF COL_LENGTH('tblEmployee','WorkArrangementID') IS NULL ALTER TABLE tblEmployee ADD WorkArrangementID INT NULL;
+    IF COL_LENGTH('tblEmployee','ConvenienceAllowance') IS NULL ALTER TABLE tblEmployee ADD ConvenienceAllowance DECIMAL(18, 2) NULL;
+    IF COL_LENGTH('tblEmployee','AttendanceMethodID') IS NULL ALTER TABLE tblEmployee ADD AttendanceMethodID INT NULL;
+    IF COL_LENGTH('tblEmployee','DesignationID') IS NULL ALTER TABLE tblEmployee ADD DesignationID INT NULL;
+    IF COL_LENGTH('tblEmployee','PrivilegeTier') IS NULL ALTER TABLE tblEmployee ADD PrivilegeTier NVARCHAR(30) NULL;
     IF COL_LENGTH('tblEmployee','MaritalStatus') IS NULL ALTER TABLE tblEmployee ADD MaritalStatus NVARCHAR(20) NULL;
     IF COL_LENGTH('tblEmployee','TemporaryResponsibleEmployeeID') IS NULL ALTER TABLE tblEmployee ADD TemporaryResponsibleEmployeeID INT NULL;
     IF COL_LENGTH('tblEmployee','PermanentResponsibleEmployeeID') IS NULL ALTER TABLE tblEmployee ADD PermanentResponsibleEmployeeID INT NULL;
@@ -598,6 +638,7 @@ BEGIN
     SET NOCOUNT ON;
     DELETE FROM tblEmployeeContact WHERE EmployeeID = @EmployeeID;
     DELETE FROM tblEmployeeAddress WHERE EmployeeID = @EmployeeID;
+    DELETE FROM tblEmployeeIdentification WHERE EmployeeID = @EmployeeID;
     DELETE FROM tblEmployeeFamilyMember WHERE EmployeeID = @EmployeeID;
     DELETE FROM tblEmployeeBank WHERE EmployeeID = @EmployeeID;
     DELETE FROM tblEmployeeEducation WHERE EmployeeID = @EmployeeID;
