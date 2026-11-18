@@ -1,0 +1,405 @@
+@page
+@model HRMS.Pages.ProductMasterModel
+@{
+    Layout = null;
+    var pageTitle = Model.ShowForm
+        ? (Model.EditMode ? "Edit Product" : "New Product")
+        : "Product Master";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @pageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .prod-list-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+        .prod-list-header .right-controls { display:flex; align-items:center; gap:.6rem; }
+        .form-breadcrumb { display:flex; align-items:center; gap:.75rem; margin-bottom:1rem; padding:.5rem .75rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .form-breadcrumb .crumb-sep { color:#9ca3af; }
+        .form-breadcrumb .crumb-current { font-weight:600; color:#111827; }
+        .readonly-field { background:#f3f4f6; color:#374151; cursor:not-allowed; }
+        .stat-chips { display:flex; gap:.5rem; margin-bottom:.75rem; flex-wrap:wrap; }
+        .stat-chip { display:inline-flex; align-items:center; padding:4px 12px; border-radius:20px; font-size:.78rem; font-weight:600; }
+        .chip-total { background:rgba(46,49,146,.12); color:var(--gb-blue); }
+        .chip-active { background:#dcfce7; color:#166534; }
+        .chip-inactive { background:rgba(227,30,36,.12); color:var(--gb-red-dark); }
+    </style>
+</head>
+<body>
+
+    @await Html.PartialAsync("_AppHeader", pageTitle)
+
+    <main class="container">
+
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        @if (!Model.ShowForm)
+        {
+            int total = Model.Products.Count;
+            int active = Model.Products.Count(p => p.IsActive);
+            int inactive = total - active;
+
+            <div class="stat-chips">
+                <span class="stat-chip chip-total">Total: @total</span>
+                <span class="stat-chip chip-active">Active: @active</span>
+                <span class="stat-chip chip-inactive">Inactive: @inactive</span>
+            </div>
+
+            @await Html.PartialAsync("_MasterExcelPanel", "/ProductMaster")
+
+            <div class="card">
+                <div class="card-header prod-list-header">
+                    <h2>Product List</h2>
+                    <div class="right-controls">
+                        <input type="text" id="txtSearch" class="form-control" style="width:280px"
+                               placeholder="Search code / name / item ID…"
+                               onkeyup="searchProductTable(this.value)" />
+                        <a href="/ProductMaster?newProduct=true" class="btn btn-primary">+ New Product</a>
+                    </div>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table" id="productTable">
+                        <thead class="grid-header">
+                            <tr>
+                                <th>#</th>
+                                <th>Product Code</th>
+                                <th>Name</th>
+                                <th>Item ID</th>
+                                <th>Inventory Type</th>
+                                <th>Product Group</th>
+                                <th>Brand</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Products.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="9" style="text-align:center; padding:2rem; color:#6b7280;">
+                                        No products found.
+                                        <br />
+                                        <a href="/ProductMaster?newProduct=true" class="btn btn-primary" style="margin-top:.75rem;">+ Add First Product</a>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                int rowNum = 0;
+                                foreach (var p in Model.Products)
+                                {
+                                    rowNum++;
+                                    <tr class="@(rowNum % 2 == 0 ? "grid-alt-row" : "grid-row")">
+                                        <td>@rowNum</td>
+                                        <td><code style="font-size:.75rem;background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;">@p.ProductCode</code></td>
+                                        <td><strong>@p.ProductName</strong></td>
+                                        <td>@p.ItemID</td>
+                                        <td>@p.InventoryType</td>
+                                        <td>@p.ProductGroupName</td>
+                                        <td>@p.BrandCode</td>
+                                        <td>
+                                            <span class="badge @(p.IsActive ? "badge-success" : "badge-danger")">
+                                                @(p.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </td>
+                                        <td style="white-space:nowrap;">
+                                            <a href="/ProductMaster?editId=@p.ProductID" class="btn btn-secondary" style="padding:3px 12px; font-size:.8rem;">Edit</a>
+                                            @if (p.IsActive)
+                                            {
+                                                <form method="post" asp-page-handler="Delete" style="display:inline"
+                                                      onsubmit="return confirm('Remove this product?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="deleteId" value="@p.ProductID" />
+                                                    <button type="submit" class="btn btn-danger" style="padding:3px 10px; font-size:.8rem;">Remove</button>
+                                                </form>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <span class="record-count">Total Records: @Model.Products.Count</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="form-breadcrumb">
+                <a href="/ProductMaster" class="btn btn-secondary" style="padding:4px 14px;">&#8592; Back to List</a>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">@(Model.EditMode ? "Edit Product" : "New Product")</span>
+                @if (Model.EditMode)
+                {
+                    <span class="crumb-sep">–</span>
+                    <span style="color:#4b5563; font-size:.9rem;">@Model.Input.ProductCode</span>
+                }
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>@(Model.EditMode ? "Edit Product" : "Add Product")</h2>
+                </div>
+
+                <form method="post" id="productForm" novalidate onsubmit="return validateProductForm();">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="ProductID" value="@Model.Input.ProductID" />
+                    <input type="hidden" name="EditMode" value="@(Model.EditMode ? "true" : "false")" />
+
+                    <div class="card-body">
+                        <div class="form-grid">
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Basic Information</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Product Code</label>
+                                <input type="text" class="form-control readonly-field" value="@Model.Input.ProductCode" readonly />
+                                <small class="field-hint">Auto-generated (e.g. PRD000001)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Product Name <span class="required">*</span></label>
+                                <input type="text" name="ProductName" id="txtProductName" class="form-control"
+                                       value="@Model.Input.ProductName" maxlength="200" required />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Item ID</label>
+                                <input type="text" name="ItemID" class="form-control"
+                                       value="@Model.Input.ItemID" maxlength="50" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Default Selling Price</label>
+                                <input type="number" name="SellingPrice" class="form-control"
+                                       value="@Model.Input.SellingPrice" min="0" step="0.0001" />
+                                <small class="field-hint">Used when creating sales order lines</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Inventory Type</label>
+                                <select name="InventoryTypeID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.InventoryTypes)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.InventoryTypeID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Unit of Measure</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>SU (Stock Unit)</label>
+                                <select name="SUUnitOfMeasureID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.UnitOfMeasures)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.SUUnitOfMeasureID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>PU (Purchase Unit)</label>
+                                <select name="PUUnitOfMeasureID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.UnitOfMeasures)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.PUUnitOfMeasureID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>IU (Issue Unit)</label>
+                                <select name="IUUnitOfMeasureID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.UnitOfMeasures)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.IUUnitOfMeasureID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Classification</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Product Nature</label>
+                                <select name="ProductNatureID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.ProductNatures)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ProductNatureID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Item Registered</label>
+                                <select name="ItemRegisteredID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.ItemRegisteredList)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ItemRegisteredID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Brand Code</label>
+                                <select name="BrandCodeID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.BrandCodes)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.BrandCodeID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Brand Group</label>
+                                <select name="BrandGroupID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.BrandGroups)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.BrandGroupID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Product Group</label>
+                                <select name="ProductGroupID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.ProductGroups)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ProductGroupID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Sales Group</label>
+                                <select name="ProductSalesGroupID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.SalesGroups)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ProductSalesGroupID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Item Group</label>
+                                <select name="ItemGroupID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.ItemGroups)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ItemGroupID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Sales Category</label>
+                                <select name="SalesCategoryID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.SalesCategories)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.SalesCategoryID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Division</label>
+                                <select name="ProductDivisionID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.Divisions)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ProductDivisionID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Team</label>
+                                <select name="ProductTeamID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.Teams)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.ProductTeamID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>HS Code</label>
+                                <select name="HSCodeID" class="form-control">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var item in Model.HSCodes)
+                                    {
+                                        <option value="@item.Id" selected="@(item.Id == Model.Input.HSCodeID)">@item.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Options</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Status</label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="IsActive" value="true" @(Model.Input.IsActive ? "checked" : "") /> Active
+                                </label>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="card-footer" style="display:flex; gap:.75rem;">
+                        <button type="submit" class="btn btn-primary">@(Model.EditMode ? "Update Product" : "Save Product")</button>
+                        <a href="/ProductMaster" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    <script>
+        function searchProductTable(q) {
+            q = (q || '').toLowerCase();
+            document.querySelectorAll('#productTable tbody tr').forEach(function (r) {
+                if (r.querySelector('td[colspan]')) return;
+                r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        function validateProductForm() {
+            var name = document.getElementById('txtProductName');
+            if (!name || !name.value.trim()) {
+                alert('Product name is required.');
+                return false;
+            }
+            return true;
+        }
+    </script>
+</body>
+</html>

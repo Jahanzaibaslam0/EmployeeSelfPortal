@@ -1,0 +1,173 @@
+@page
+@model HRMS.Pages.LanguageSetupModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS - Language Setup</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body>
+    @await Html.PartialAsync("_AppHeader", "Language Setup")
+
+    <main class="container">
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        <div class="card">
+            <div class="card-header">
+                <h2>@(Model.Input.LanguageID > 0 ? "Edit Language" : "Add Language")</h2>
+            </div>
+            <form method="post" action="/LanguageSetup?handler=Save">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="languageID" value="@Model.Input.LanguageID" />
+                <div class="card-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Code <span class="required">*</span></label>
+                            <input type="text" name="languageCode" class="form-control"
+                                   value="@Model.Input.LanguageCode" maxlength="10"
+                                   placeholder="e.g. en, ur" />
+                        </div>
+                        <div class="form-group">
+                            <label>Name <span class="required">*</span></label>
+                            <input type="text" name="languageName" class="form-control"
+                                   value="@Model.Input.LanguageName" maxlength="100"
+                                   placeholder="e.g. English" />
+                        </div>
+                        <div class="form-group">
+                            <label>Native Name</label>
+                            <input type="text" name="nativeName" class="form-control"
+                                   value="@Model.Input.NativeName" maxlength="100"
+                                   placeholder="e.g. English, اردو" />
+                        </div>
+                        <div class="form-group">
+                            <label>Region</label>
+                            <input type="text" name="region" class="form-control"
+                                   value="@Model.Input.Region" maxlength="100"
+                                   placeholder="e.g. Pakistan, Global" />
+                        </div>
+                        <div class="form-group">
+                            <label>Source</label>
+                            <input type="text" name="source" class="form-control"
+                                   value="@Model.Input.Source" maxlength="100"
+                                   placeholder="e.g. ISO 639-1" />
+                        </div>
+                        <div class="form-group">
+                            <label>Priority</label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="isPriority" value="true"
+                                       @(Model.Input.IsPriority ? "checked" : "") /> Priority Language
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="isActive" value="true"
+                                       @(Model.Input.IsActive ? "checked" : "") /> Active
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        @(Model.Input.LanguageID > 0 ? "Update" : "Save")
+                    </button>
+                    <a href="/LanguageSetup" class="btn btn-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header space-between">
+                <h2>Language List</h2>
+                <div style="display:flex;gap:.5rem;align-items:center;">
+                    <a href="/LanguageSetup?handler=DownloadExcel" class="btn btn-secondary">Download Excel</a>
+                    <input type="text" id="txtSearch" class="form-control" style="width:220px"
+                           placeholder="Search…" onkeyup="searchTable(this.value)" />
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/LanguageSetup?handler=UploadExcel" enctype="multipart/form-data"
+                      style="display:flex;gap:.75rem;align-items:end;margin-bottom:1.25rem;flex-wrap:wrap;">
+                    @Html.AntiForgeryToken()
+                    <div class="form-group" style="margin:0;">
+                        <label>Upload Excel</label>
+                        <input type="file" name="languageFile" class="form-control" accept=".xlsx,.xls" />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="data-table" id="dataTable">
+                        <thead class="grid-header">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Native Name</th>
+                                <th>Region</th>
+                                <th>Source</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Languages.Count == 0)
+                            {
+                                <tr class="empty-row"><td colspan="8">No records found.</td></tr>
+                            }
+                            else
+                            {
+                                foreach (var item in Model.Languages)
+                                {
+                                    <tr>
+                                        <td><code style="font-size:.75rem;background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;">@item.LanguageCode</code></td>
+                                        <td>@item.LanguageName</td>
+                                        <td>@item.NativeName</td>
+                                        <td>@item.Region</td>
+                                        <td>@item.Source</td>
+                                        <td>
+                                            <span class="badge @(item.IsPriority ? "badge-success" : "badge-danger")">
+                                                @(item.IsPriority ? "Yes" : "No")
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge @(item.IsActive ? "badge-success" : "badge-danger")">
+                                                @(item.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </td>
+                                        <td class="actions-col">
+                                            <a class="btn-icon btn-edit" href="/LanguageSetup?editId=@item.LanguageID">Edit</a>
+                                            <form method="post" action="/LanguageSetup?handler=Delete" style="display:inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="deleteId" value="@item.LanguageID" />
+                                                <button type="submit" class="btn-icon btn-delete"
+                                                        onclick="return confirm('Remove this language?')">X</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+    <script>
+        function searchTable(q) {
+            q = (q || '').toLowerCase();
+            document.querySelectorAll('#dataTable tbody tr').forEach(function (r) {
+                r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

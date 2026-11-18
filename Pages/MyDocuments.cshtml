@@ -1,0 +1,145 @@
+@page
+@model HRMS.Pages.MyDocumentsModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @Model.PageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body>
+    @await Html.PartialAsync("_AppHeader", Model.PageTitle)
+
+    <main class="container">
+        <div class="card">
+            <div class="card-header">
+                <h2>@Model.PageTitle</h2>
+            </div>
+            <div class="card-body">
+                @if (Model.Documents.Count == 0)
+                {
+                    <div class="empty-state">
+                        <span class="icon">📄</span>
+                        <p>No documents found.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="doc-toolbar">
+                        <div class="search-box">
+                            <input type="text" id="txtSearch" class="form-control" placeholder="Search documents..." />
+                            <select id="ddlStatusFilter" class="form-control">
+                                <option value="">All Status</option>
+                                <option value="Verified">Verified</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                            @if (Model.IsAdminView)
+                            {
+                                <select id="ddlEmployeeFilter" class="form-control">
+                                    <option value="">All Employees</option>
+                                    @foreach (var emp in Model.Documents.Select(d => new { d.EmployeeCode, d.EmployeeName }).Distinct().OrderBy(e => e.EmployeeCode))
+                                    {
+                                        <option value="@emp.EmployeeCode">@emp.EmployeeCode – @emp.EmployeeName</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                        <span class="doc-count" id="docCount">@Model.Documents.Count document(s)</span>
+                    </div>
+
+                    <div style="overflow-x:auto;">
+                        <table class="doc-table" id="docTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    @if (Model.IsAdminView)
+                                    {
+                                        <th>Employee</th>
+                                    }
+                                    <th>Document Type</th>
+                                    <th>Document No.</th>
+                                    <th>Issue Date</th>
+                                    <th>Expiry Date</th>
+                                    <th>Status</th>
+                                    <th>Remarks</th>
+                                    <th>File</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var i = 0; i < Model.Documents.Count; i++)
+                                {
+                                    var doc = Model.Documents[i];
+                                    var statusClass = doc.VerificationStatus.Equals("Verified", StringComparison.OrdinalIgnoreCase) ? "badge-verified"
+                                        : doc.VerificationStatus.Equals("Rejected", StringComparison.OrdinalIgnoreCase) ? "badge-rejected"
+                                        : "badge-pending";
+                                    <tr data-emp="@doc.EmployeeCode" data-status="@doc.VerificationStatus">
+                                        <td>@(i + 1)</td>
+                                        @if (Model.IsAdminView)
+                                        {
+                                            <td>@doc.EmployeeCode – @doc.EmployeeName</td>
+                                        }
+                                        <td>@doc.DocumentTypeName</td>
+                                        <td>@doc.DocumentNumber</td>
+                                        <td>@doc.IssueDate</td>
+                                        <td>@doc.ExpiryDate</td>
+                                        <td><span class="badge-status @statusClass">@doc.VerificationStatus</span></td>
+                                        <td>@doc.Remarks</td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(doc.DocumentPath))
+                                            {
+                                                <a href="/EmployeeDocumentFile.aspx?id=@doc.EmployeeDocumentID" target="_blank" class="doc-link" title="@doc.OriginalFileName">
+                                                    <span class="icon">📎</span> View
+                                                </a>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/app.js?v=9"></script>
+    <script>
+        (function () {
+            var search = document.getElementById('txtSearch');
+            var statusFilter = document.getElementById('ddlStatusFilter');
+            var empFilter = document.getElementById('ddlEmployeeFilter');
+            var table = document.getElementById('docTable');
+            var countEl = document.getElementById('docCount');
+
+            if (!table) return;
+            var rows = Array.from(table.querySelectorAll('tbody tr'));
+
+            function applyFilters() {
+                var term = (search.value || '').toLowerCase();
+                var status = (statusFilter ? statusFilter.value : '');
+                var emp = (empFilter ? empFilter.value : '');
+                var visible = 0;
+
+                rows.forEach(function (row) {
+                    var text = row.textContent.toLowerCase();
+                    var matchText = !term || text.indexOf(term) >= 0;
+                    var matchStatus = !status || row.getAttribute('data-status') === status;
+                    var matchEmp = !emp || row.getAttribute('data-emp') === emp;
+                    var show = matchText && matchStatus && matchEmp;
+                    row.style.display = show ? '' : 'none';
+                    if (show) visible++;
+                });
+
+                if (countEl) countEl.textContent = visible + ' document(s)';
+            }
+
+            if (search) search.addEventListener('input', applyFilters);
+            if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+            if (empFilter) empFilter.addEventListener('change', applyFilters);
+        })();
+    </script>
+</body>
+</html>

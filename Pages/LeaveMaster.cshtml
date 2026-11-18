@@ -1,0 +1,404 @@
+@page
+@model HRMS.Pages.LeaveMasterModel
+@{
+    Layout = null;
+    var pageTitle = Model.ShowForm
+        ? (Model.EditMode ? "Edit Leave Application" : "New Leave Application")
+        : "Leave Management";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @pageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .leave-list-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+        .leave-list-header .right-controls { display:flex; align-items:center; gap:.6rem; }
+        .form-breadcrumb { display:flex; align-items:center; gap:.75rem; margin-bottom:1rem; padding:.5rem .75rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .form-breadcrumb .crumb-sep { color:#9ca3af; }
+        .form-breadcrumb .crumb-current { font-weight:600; color:#111827; }
+        .readonly-field { background:#f3f4f6; color:#374151; cursor:not-allowed; }
+    </style>
+</head>
+<body>
+
+    @await Html.PartialAsync("_AppHeader", pageTitle)
+
+    <main class="container">
+
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        @if (!Model.ShowForm)
+        {
+            <div class="card">
+                <div class="card-header leave-list-header">
+                    <h2>Leave Applications</h2>
+                    <div class="right-controls">
+                        <input type="text" id="txtSearch" class="form-control" style="width:280px"
+                               placeholder="Search employee / category / type…"
+                               onkeyup="searchLeaveTable(this.value)" />
+                        <a href="/LeaveMaster?newLeave=true" class="btn btn-primary">+ New Leave Application</a>
+                    </div>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table" id="leaveTable">
+                        <thead class="grid-header">
+                            <tr>
+                                <th>#</th>
+                                <th>Leave ID</th>
+                                <th>Applying Date</th>
+                                <th>Employee</th>
+                                <th>Leave Type</th>
+                                <th>Category</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Days</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Leaves.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="10" style="text-align:center; padding:2rem; color:#6b7280;">
+                                        No leave applications found.
+                                        <br />
+                                        <a href="/LeaveMaster?newLeave=true" class="btn btn-primary" style="margin-top:.75rem;">+ Add First Application</a>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                int rowNum = 0;
+                                foreach (var leave in Model.Leaves)
+                                {
+                                    rowNum++;
+                                    <tr class="@(rowNum % 2 == 0 ? "grid-alt-row" : "grid-row")">
+                                        <td>@rowNum</td>
+                                        <td><strong>#@leave.LeaveID</strong></td>
+                                        <td>@leave.ApplyingDate.ToString("dd MMM yyyy")</td>
+                                        <td>@leave.EmployeeCode<br /><span style="font-size:.8rem;color:#6b7280;">@leave.EmployeeName</span></td>
+                                        <td>@leave.LeaveType</td>
+                                        <td>@leave.LeaveCategoryName</td>
+                                        <td>@leave.LeaveFromDate.ToString("dd MMM yyyy")</td>
+                                        <td>@leave.LeaveToDate.ToString("dd MMM yyyy")</td>
+                                        <td>@leave.NumberOfDays</td>
+                                        <td style="white-space:nowrap;">
+                                            <a href="/LeaveMaster?editId=@leave.LeaveID" class="btn btn-secondary" style="padding:3px 12px; font-size:.8rem;">Edit</a>
+                                            <form method="post" asp-page-handler="Delete" style="display:inline"
+                                                  onsubmit="return confirm('Delete this leave application?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="deleteId" value="@leave.LeaveID" />
+                                                <button type="submit" class="btn btn-danger" style="padding:3px 10px; font-size:.8rem;">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <span class="record-count">Total Records: @Model.Leaves.Count</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="form-breadcrumb">
+                <a href="/LeaveMaster" class="btn btn-secondary" style="padding:4px 14px;">&#8592; Back to List</a>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">@(Model.EditMode ? "Edit Leave Application" : "New Leave Application")</span>
+                @if (Model.EditMode)
+                {
+                    <span class="crumb-sep">–</span>
+                    <span style="color:#4b5563; font-size:.9rem;">Leave #@Model.Input.LeaveID</span>
+                }
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>@(Model.EditMode ? "Edit Leave Application" : "Submit Leave Application")</h2>
+                </div>
+
+                <form method="post" id="leaveForm" novalidate onsubmit="return validateLeaveForm();">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LeaveID" value="@Model.Input.LeaveID" />
+                    <input type="hidden" name="EditMode" value="@(Model.EditMode ? "true" : "false")" />
+                    <input type="hidden" name="NumberOfDays" id="hdnNumberOfDays" value="@Model.Input.NumberOfDays" />
+
+                    <div class="card-body">
+                        <div class="form-grid">
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Leave Application Details</h3>
+                            </div>
+
+                            @if (Model.EditMode)
+                            {
+                                <div class="form-group">
+                                    <label>Leave ID</label>
+                                    <input type="text" class="form-control readonly-field" value="#@Model.Input.LeaveID" readonly />
+                                </div>
+                            }
+
+                            <div class="form-group">
+                                <label>Applying Date <span class="required">*</span></label>
+                                <input type="date" name="ApplyingDate" class="form-control" value="@Model.Input.ApplyingDate" required />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Employee <span class="required">*</span></label>
+                                <select name="EmployeeID" id="ddlEmployee" class="form-control" required onchange="loadEmployeeInfo(this.value);">
+                                    <option value="">-- Select Employee --</option>
+                                    @foreach (var emp in Model.Employees)
+                                    {
+                                        if (Model.Input.EmployeeID == emp.Id)
+                                        { <option value="@emp.Id" selected>@emp.Name</option> }
+                                        else
+                                        { <option value="@emp.Id">@emp.Name</option> }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Employee Information</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Employee Name</label>
+                                <input type="text" id="txtEmployeeName" class="form-control readonly-field" value="@Model.EmployeeInfo.EmployeeName" readonly />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Father / Husband Name</label>
+                                <input type="text" id="txtFatherName" class="form-control readonly-field" value="@Model.EmployeeInfo.FatherName" readonly />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Division</label>
+                                <input type="text" id="txtDivision" class="form-control readonly-field" value="@Model.EmployeeInfo.Division" readonly />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Department</label>
+                                <input type="text" id="txtDepartment" class="form-control readonly-field" value="@Model.EmployeeInfo.Department" readonly />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Designation</label>
+                                <input type="text" id="txtDesignation" class="form-control readonly-field" value="@Model.EmployeeInfo.Designation" readonly />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Region</label>
+                                <input type="text" id="txtRegion" class="form-control readonly-field" value="@Model.EmployeeInfo.Region" readonly />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Location</label>
+                                <input type="text" id="txtLocation" class="form-control readonly-field" value="@Model.EmployeeInfo.Location" readonly />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Leave Information</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Leave Type <span class="required">*</span></label>
+                                <select name="LeaveType" class="form-control" required>
+                                    @foreach (var lt in Model.LeaveTypeOptions)
+                                    {
+                                        if (Model.Input.LeaveType == lt)
+                                        { <option value="@lt" selected>@lt</option> }
+                                        else
+                                        { <option value="@lt">@lt</option> }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Future Unplanned Leave</label>
+                                <select name="IsFutureUnplannedLeave" class="form-control">
+                                    @if (Model.Input.IsFutureUnplannedLeave)
+                                    {
+                                        <option value="false">No</option>
+                                        <option value="true" selected>Yes</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="false" selected>No</option>
+                                        <option value="true">Yes</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Leave Category <span class="required">*</span></label>
+                                <select name="LeaveCategoryID" class="form-control" required>
+                                    <option value="">-- Select Category --</option>
+                                    @foreach (var cat in Model.LeaveCategories)
+                                    {
+                                        if (Model.Input.LeaveCategoryID == cat.Id)
+                                        { <option value="@cat.Id" selected>@cat.Name</option> }
+                                        else
+                                        { <option value="@cat.Id">@cat.Name</option> }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Leave From Date <span class="required">*</span></label>
+                                <input type="date" name="LeaveFromDate" id="txtLeaveFrom" class="form-control"
+                                       value="@Model.Input.LeaveFromDate" required onchange="calculateLeaveDays();" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Leave To Date <span class="required">*</span></label>
+                                <input type="date" name="LeaveToDate" id="txtLeaveTo" class="form-control"
+                                       value="@Model.Input.LeaveToDate" required onchange="calculateLeaveDays();" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Number of Days</label>
+                                <input type="text" id="txtNumberOfDays" class="form-control readonly-field"
+                                       value="@(Model.Input.NumberOfDays > 0 ? Model.Input.NumberOfDays.ToString() : "")" readonly />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Additional Information</h3>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Reason for Leave</label>
+                                <textarea name="ReasonForLeave" class="form-control" rows="3" maxlength="1000"
+                                          placeholder="Enter reason for leave">@Model.Input.ReasonForLeave</textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Temporary Responsible Person</label>
+                                <select name="TempResponsibleEmployeeID" class="form-control">
+                                    <option value="">-- Select Employee --</option>
+                                    @foreach (var emp in Model.Employees)
+                                    {
+                                        if (Model.Input.TempResponsibleEmployeeID == emp.Id)
+                                        { <option value="@emp.Id" selected>@emp.Name</option> }
+                                        else
+                                        { <option value="@emp.Id">@emp.Name</option> }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Permanent Responsible Person</label>
+                                <select name="PermanentResponsibleEmployeeID" class="form-control">
+                                    <option value="">-- Select Employee --</option>
+                                    @foreach (var emp in Model.Employees)
+                                    {
+                                        if (Model.Input.PermanentResponsibleEmployeeID == emp.Id)
+                                        { <option value="@emp.Id" selected>@emp.Name</option> }
+                                        else
+                                        { <option value="@emp.Id">@emp.Name</option> }
+                                    }
+                                </select>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-primary">@(Model.EditMode ? "Update Leave Application" : "Submit Leave Application")</button>
+                        <a href="/LeaveMaster" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    <script>
+        function searchLeaveTable(query) {
+            var q = (query || '').toLowerCase();
+            var rows = document.querySelectorAll('#leaveTable tbody tr');
+            rows.forEach(function (row) {
+                if (row.cells.length < 2) return;
+                row.style.display = row.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+            });
+        }
+
+        function clearEmployeeInfo() {
+            ['txtEmployeeName', 'txtFatherName', 'txtDivision', 'txtDepartment',
+             'txtDesignation', 'txtRegion', 'txtLocation'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+        }
+
+        function setEmployeeInfo(info) {
+            document.getElementById('txtEmployeeName').value = info.employeeName || '';
+            document.getElementById('txtFatherName').value = info.fatherName || '';
+            document.getElementById('txtDivision').value = info.division || '';
+            document.getElementById('txtDepartment').value = info.department || '';
+            document.getElementById('txtDesignation').value = info.designation || '';
+            document.getElementById('txtRegion').value = info.region || '';
+            document.getElementById('txtLocation').value = info.location || '';
+        }
+
+        function loadEmployeeInfo(employeeId) {
+            if (!employeeId) {
+                clearEmployeeInfo();
+                return;
+            }
+            fetch('/LeaveMaster?handler=EmployeeInfo&employeeId=' + encodeURIComponent(employeeId))
+                .then(function (r) { return r.json(); })
+                .then(setEmployeeInfo)
+                .catch(clearEmployeeInfo);
+        }
+
+        function calculateLeaveDays() {
+            var fromVal = document.getElementById('txtLeaveFrom').value;
+            var toVal = document.getElementById('txtLeaveTo').value;
+            var daysField = document.getElementById('txtNumberOfDays');
+            var hiddenField = document.getElementById('hdnNumberOfDays');
+
+            if (!fromVal || !toVal) {
+                daysField.value = '';
+                hiddenField.value = '0';
+                return;
+            }
+
+            var from = new Date(fromVal + 'T00:00:00');
+            var to = new Date(toVal + 'T00:00:00');
+            if (to < from) {
+                daysField.value = '';
+                hiddenField.value = '0';
+                return;
+            }
+
+            var diff = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+            daysField.value = diff.toString();
+            hiddenField.value = diff.toString();
+        }
+
+        function validateLeaveForm() {
+            calculateLeaveDays();
+            var days = parseInt(document.getElementById('hdnNumberOfDays').value, 10);
+            if (!days || days <= 0) {
+                alert('Please enter valid leave from and to dates.');
+                return false;
+            }
+            return true;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            calculateLeaveDays();
+        });
+    </script>
+</body>
+</html>

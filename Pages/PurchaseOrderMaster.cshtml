@@ -1,0 +1,284 @@
+@page
+@model HRMS.Pages.PurchaseOrderMasterModel
+@{
+    Layout = null;
+    var pageTitle = Model.ShowForm
+        ? (Model.EditMode ? "Edit Purchase Order" : "New Purchase Order")
+        : "Purchase Order";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @pageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .po-list-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+        .po-list-header .right-controls { display:flex; align-items:center; gap:.6rem; }
+        .form-breadcrumb { display:flex; align-items:center; gap:.75rem; margin-bottom:1rem; padding:.5rem .75rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .form-breadcrumb .crumb-sep { color:#9ca3af; }
+        .form-breadcrumb .crumb-current { font-weight:600; color:#111827; }
+        .readonly-field { background:#f3f4f6; color:#374151; cursor:not-allowed; }
+        .po-totals-row { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:1.5rem; margin-top:1rem; padding:.75rem 1rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; }
+        .po-totals-row .total-item { text-align:right; }
+        .po-totals-row .total-item .label { font-size:.78rem; color:#6b7280; display:block; }
+        .po-totals-row .total-item .value { font-weight:600; color:#374151; }
+        .po-totals-row .total-item.grand .value { font-size:1.25rem; font-weight:700; color:var(--gb-blue); }
+        #poItemTable input.form-control, #poItemTable select.form-control { font-size:.78rem; padding:4px 6px; min-width:70px; }
+        #poItemTable .item-line-net { font-size:.85rem; }
+        .status-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:.75rem; font-weight:600; }
+        .status-draft { background:#f3f4f6; color:#374151; }
+        .status-pending { background:#fef3c7; color:#92400e; }
+        .status-approved { background:#dbeafe; color:#1e40af; }
+        .status-received { background:#dcfce7; color:#166534; }
+        .status-cancelled { background:#fee2e2; color:#991b1b; }
+    </style>
+</head>
+<body>
+
+    @await Html.PartialAsync("_AppHeader", pageTitle)
+
+    <main class="container">
+
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        @if (!Model.ShowForm)
+        {
+            <div class="card">
+                <div class="card-header po-list-header">
+                    <h2>Purchase Order List</h2>
+                    <div class="right-controls">
+                        <input type="text" id="txtSearch" class="form-control" style="width:260px"
+                               placeholder="Search PO / vendor / status…"
+                               onkeyup="searchPOTable(this.value)" />
+                        <a href="/PurchaseOrderMaster?newPO=true" class="btn btn-primary">+ New Purchase Order</a>
+                    </div>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table" id="poTable">
+                        <thead class="grid-header">
+                            <tr>
+                                <th>#</th>
+                                <th>PO Number</th>
+                                <th>Date</th>
+                                <th>Vendor</th>
+                                <th>Status</th>
+                                <th>Grand Total</th>
+                                <th>Lines</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.PurchaseOrders.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="8" style="text-align:center; padding:2rem; color:#6b7280;">
+                                        No purchase orders found.
+                                        <br />
+                                        <a href="/PurchaseOrderMaster?newPO=true" class="btn btn-primary" style="margin-top:.75rem;">+ Add First Purchase Order</a>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                int rowNum = 0;
+                                foreach (var po in Model.PurchaseOrders)
+                                {
+                                    rowNum++;
+                                    var statusClass = po.OrderStatus.ToLowerInvariant() switch
+                                    {
+                                        "pending" => "status-pending",
+                                        "approved" => "status-approved",
+                                        "received" => "status-received",
+                                        "cancelled" => "status-cancelled",
+                                        _ => "status-draft"
+                                    };
+                                    <tr class="@(rowNum % 2 == 0 ? "grid-alt-row" : "grid-row")">
+                                        <td>@rowNum</td>
+                                        <td><code style="font-size:.75rem;background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;">@po.PurchaseOrderCode</code></td>
+                                        <td>@po.PurchaseOrderDate.ToString("dd MMM yyyy")</td>
+                                        <td>@po.VendorName</td>
+                                        <td><span class="status-badge @statusClass">@po.OrderStatus</span></td>
+                                        <td>@po.GrandTotal.ToString("N2")</td>
+                                        <td>@po.LineCount</td>
+                                        <td style="white-space:nowrap;">
+                                            <a href="/PurchaseOrderMaster?editId=@po.PurchaseOrderID" class="btn btn-secondary" style="padding:3px 12px; font-size:.8rem;">Edit</a>
+                                            <form method="post" asp-page-handler="Delete" style="display:inline"
+                                                  onsubmit="return confirm('Delete this purchase order and all line items?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="deleteId" value="@po.PurchaseOrderID" />
+                                                <button type="submit" class="btn btn-danger" style="padding:3px 10px; font-size:.8rem;">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <span class="record-count">Total Records: @Model.PurchaseOrders.Count</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="form-breadcrumb">
+                <a href="/PurchaseOrderMaster" class="btn btn-secondary" style="padding:4px 14px;">&#8592; Back to List</a>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">@(Model.EditMode ? "Edit Purchase Order" : "New Purchase Order")</span>
+                @if (Model.EditMode)
+                {
+                    <span class="crumb-sep">–</span>
+                    <span style="color:#4b5563; font-size:.9rem;">@Model.Input.PurchaseOrderCode</span>
+                }
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>@(Model.EditMode ? "Edit Purchase Order" : "Add Purchase Order")</h2>
+                </div>
+
+                <form method="post" id="poForm" novalidate onsubmit="return preparePOPayload();">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="PurchaseOrderID" value="@Model.Input.PurchaseOrderID" />
+                    <input type="hidden" name="EditMode" value="@(Model.EditMode ? "true" : "false")" />
+                    <input type="hidden" name="ItemsJson" id="ItemsJson" />
+                    <input type="hidden" name="TotalQty" id="TotalQty" value="@Model.Input.TotalQty" />
+                    <input type="hidden" name="TotalTax" id="TotalTax" value="@Model.Input.TotalTax" />
+                    <input type="hidden" name="TotalDiscount" id="TotalDiscount" value="@Model.Input.TotalDiscount" />
+                    <input type="hidden" name="GrandTotal" id="GrandTotal" value="@Model.Input.GrandTotal" />
+
+                    <div class="card-body">
+                        <div class="form-grid">
+
+                            <div class="form-group full-width">
+                                <h3 class="form-section-title">Purchase Order Header</h3>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Purchase Order Number</label>
+                                <input type="text" name="PurchaseOrderCode" class="form-control readonly-field"
+                                       value="@Model.Input.PurchaseOrderCode" readonly />
+                                <small class="field-hint">Auto-generated (e.g. PO000001)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Purchase Order Date <span class="required">*</span></label>
+                                <input type="date" name="PurchaseOrderDate" id="txtPODate" class="form-control"
+                                       value="@Model.Input.PurchaseOrderDate" required />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Order Status</label>
+                                <select name="OrderStatus" class="form-control">
+                                    @foreach (var s in HRMS.Pages.PurchaseOrderMasterModel.OrderStatusOptions)
+                                    {
+                                        <option value="@s" selected="@(s == Model.Input.OrderStatus)">@s</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Vendor Code <span class="required">*</span></label>
+                                <select name="VendorID" id="ddlVendor" class="form-control" required>
+                                    <option value="">-- Select Vendor --</option>
+                                    @foreach (var v in Model.Vendors)
+                                    {
+                                        <option value="@v.Id" selected="@(v.Id == Model.Input.VendorID)">@v.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Vendor Name</label>
+                                <input type="text" name="VendorName" id="txtVendorName" class="form-control readonly-field"
+                                       value="@Model.Input.VendorName" readonly maxlength="200" />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Remarks</label>
+                                <textarea name="Remarks" class="form-control" rows="2" maxlength="500">@Model.Input.Remarks</textarea>
+                            </div>
+
+                        </div>
+
+                        <div class="form-group full-width mt-4">
+                            <div class="card">
+                                <div class="card-header space-between">
+                                    <h2>Order Lines</h2>
+                                    <button type="button" class="btn btn-secondary" onclick="addPOItemRow()">+ Add Line</button>
+                                </div>
+                                <div class="card-body table-responsive">
+                                    <table class="data-table" id="poItemTable">
+                                        <thead class="grid-header">
+                                            <tr>
+                                                <th>Product Code</th>
+                                                <th>Product Description</th>
+                                                <th>Quantity</th>
+                                                <th>Unit Price</th>
+                                                <th>Tax Amount</th>
+                                                <th>Discount Amount</th>
+                                                <th>Net Amount</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="po-totals-row">
+                            <div class="total-item">
+                                <span class="label">Total Quantity</span>
+                                <span class="value" id="lblTotalQty">@Model.Input.TotalQty</span>
+                            </div>
+                            <div class="total-item">
+                                <span class="label">Total Tax</span>
+                                <span class="value" id="lblTotalTax">@Model.Input.TotalTax</span>
+                            </div>
+                            <div class="total-item">
+                                <span class="label">Total Discount</span>
+                                <span class="value" id="lblTotalDiscount">@Model.Input.TotalDiscount</span>
+                            </div>
+                            <div class="total-item grand">
+                                <span class="label">Grand Total</span>
+                                <span class="value" id="lblGrandTotal">@Model.Input.GrandTotal</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer" style="display:flex; gap:.75rem;">
+                        <button type="submit" class="btn btn-primary">@(Model.EditMode ? "Update Purchase Order" : "Save Purchase Order")</button>
+                        <a href="/PurchaseOrderMaster" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+
+            <script type="application/json" id="productLookupData">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Products))</script>
+            <script type="application/json" id="initialPOItemsData">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ItemRecords))</script>
+            <script src="/js/purchaseorder.js?v=1"></script>
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    @if (!Model.ShowForm)
+    {
+        <script>
+            function searchPOTable(q) {
+                q = (q || '').toLowerCase();
+                document.querySelectorAll('#poTable tbody tr').forEach(function (r) {
+                    if (r.querySelector('td[colspan]')) return;
+                    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+                });
+            }
+        </script>
+    }
+</body>
+</html>

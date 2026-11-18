@@ -1,0 +1,47 @@
+@page
+@model HRMS.Pages.LoginModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – Login</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+</head>
+<body class="login-page">
+    <div class="login-card">
+        <div class="login-header">
+            <img src="/images/gb-logo.png" alt="Ghazi Brothers" />
+            <h1>HRMS</h1>
+            <p>Human Resource Management System</p>
+        </div>
+        <form method="post" class="login-body">
+            <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="alert alert-error" style="margin-bottom:1rem;">@Model.ErrorMessage</div>
+            }
+
+            <div class="form-group">
+                <label>Username <span class="required">*</span></label>
+                <input type="text" name="Username" class="form-control"
+                       value="@Model.Username" autocomplete="username" autofocus />
+            </div>
+            <div class="form-group">
+                <label>Password <span class="required">*</span></label>
+                <input type="password" name="Password" class="form-control"
+                       autocomplete="current-password" />
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:.5rem;">
+                Sign In
+            </button>
+        </form>
+        <div class="login-footer">
+          <p>Copyright © 2026 Ghazi Brothers. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,432 @@
+@page
+@model HRMS.Pages.PositionMasterModel
+@{
+    Layout = null;
+    var pageTitle = Model.ShowForm
+        ? (Model.EditMode ? "Edit Position" : "New Position")
+        : "Position Master";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS – @pageTitle</title>
+    <link rel="stylesheet" href="/css/style.css?v=10" />
+    <style>
+        .pos-tabs { display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:1rem; }
+        .pos-tab {
+            padding:.45rem 1rem; border-radius:8px; border:1px solid var(--border);
+            background:#fff; font-weight:600; font-size:.85rem; cursor:pointer;
+        }
+        .pos-tab.active { background:var(--gb-blue); color:#fff; border-color:var(--gb-blue); }
+        .pos-section { display:none; }
+        .pos-section.active { display:block; }
+        .assign-table input, .assign-table select { font-size:.82rem; }
+    </style>
+</head>
+<body>
+    @await Html.PartialAsync("_AppHeader", pageTitle)
+
+    <main class="container">
+        @if (!string.IsNullOrEmpty(Model.AlertMessage))
+        {
+            <div class="alert alert-@Model.AlertType">@Model.AlertMessage</div>
+        }
+
+        @if (!Model.ShowForm)
+        {
+            @await Html.PartialAsync("_MasterExcelPanel", "/PositionMaster")
+
+            <div class="card">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Position List</h2>
+                    <div style="display:flex; gap:.5rem;">
+                        <a href="/PositionHierarchy" class="btn btn-secondary">Position Hierarchy</a>
+                        <a href="/PositionMaster?newPosition=true" class="btn btn-primary">+ New Position</a>
+                    </div>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table">
+                        <thead class="grid-header">
+                            <tr>
+                                <th>Position No</th>
+                                <th>Description</th>
+                                <th>Job</th>
+                                <th>Department</th>
+                                <th>Title</th>
+                                <th>Type</th>
+                                <th>Duration</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Positions.Count == 0)
+                            {
+                                <tr class="empty-row"><td colspan="12">No positions found.</td></tr>
+                            }
+                            else
+                            {
+                                foreach (var p in Model.Positions)
+                                {
+                                    <tr>
+                                        <td><strong>@p.PositionNo</strong></td>
+                                        <td>@p.Description</td>
+                                        <td>@p.JobTitle</td>
+                                        <td>@p.DepartmentName</td>
+                                        <td>@p.TitleName</td>
+                                        <td>@p.PositionTypeName</td>
+                                        <td>@p.PositionDuration</td>
+                                        <td>@(p.PositionStartDate?.ToString("dd-MMM-yyyy") ?? "—")</td>
+                                        <td>@(p.PositionEndDate?.ToString("dd-MMM-yyyy") ?? "—")</td>
+                                        <td>@p.Email</td>
+                                        <td><span class="badge @(p.IsActive ? "badge-success" : "badge-danger")">@(p.IsActive ? "Active" : "Inactive")</span></td>
+                                        <td class="actions-col">
+                                            <a class="btn-icon btn-edit" href="/PositionMaster?editId=@p.PositionID">Edit</a>
+                                            <form method="post" asp-page-handler="Delete" style="display:inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="deleteId" value="@p.PositionID" />
+                                                <button type="submit" class="btn-icon btn-delete" title="Remove">X</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="form-breadcrumb" style="display:flex; align-items:center; gap:.75rem; margin-bottom:1rem;">
+                <a href="/PositionMaster" class="btn btn-secondary" style="font-size:.8rem;">← Back to List</a>
+                <span class="crumb-current">@(Model.EditMode ? Model.Input.PositionNo : "New Position")</span>
+            </div>
+
+            <div class="pos-tabs">
+                <button type="button" class="pos-tab active" data-tab="details" onclick="showPosTab('details')">Position Details</button>
+                @if (Model.EditMode)
+                {
+                    <button type="button" class="pos-tab" data-tab="assignment" onclick="showPosTab('assignment')">Worker Assignment</button>
+                    <button type="button" class="pos-tab" data-tab="benefit" onclick="showPosTab('benefit')">Benefit Entitlement</button>
+                }
+            </div>
+
+            <div id="tab-details" class="pos-section active">
+                <div class="card">
+                    <div class="card-header"><h2>Position Details</h2></div>
+                    <form method="post" asp-page-handler="SavePosition">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="positionID" value="@Model.Input.PositionID" />
+                        <div class="card-body">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Position No <span class="required">*</span></label>
+                                    <input type="text" name="positionNo" class="form-control" value="@Model.Input.PositionNo" maxlength="20" readonly />
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Description</label>
+                                    <textarea name="description" class="form-control" rows="2" maxlength="500">@Model.Input.Description</textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email Lookup</label>
+                                    <select name="emailEmployeeID" class="form-control">
+                                        <option value="0">-- Select Email --</option>
+                                        @foreach (var e in Model.EmailLookups)
+                                        {
+                                            <option value="@e.EmployeeID" selected="@(Model.Input.EmailEmployeeID == e.EmployeeID)">@e.Label</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Job Lookup</label>
+                                    <select name="jobID" class="form-control">
+                                        <option value="0">-- Select Job --</option>
+                                        @foreach (var j in Model.Jobs)
+                                        {
+                                            <option value="@j.Id" selected="@(Model.Input.JobID == j.Id)">@j.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Department Lookup</label>
+                                    <select name="departmentID" class="form-control">
+                                        <option value="0">-- Select Department --</option>
+                                        @foreach (var d in Model.Departments)
+                                        {
+                                            <option value="@d.Id" selected="@(Model.Input.DepartmentID == d.Id)">@d.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Report To Position Lookup</label>
+                                    <select name="reportsToPositionID" class="form-control">
+                                        <option value="0">-- None --</option>
+                                        @foreach (var p in Model.ReportToPositions)
+                                        {
+                                            <option value="@p.Id" selected="@(Model.Input.ReportsToPositionID == p.Id)">@p.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Title Lookup</label>
+                                    <select name="titleID" class="form-control">
+                                        <option value="0">-- Select Title --</option>
+                                        @foreach (var t in Model.Titles)
+                                        {
+                                            <option value="@t.Id" selected="@(Model.Input.TitleID == t.Id)">@t.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Position Type</label>
+                                    <select name="positionTypeID" class="form-control">
+                                        <option value="0">-- Select Type --</option>
+                                        @foreach (var pt in Model.PositionTypes)
+                                        {
+                                            <option value="@pt.Id" selected="@(Model.Input.PositionTypeID == pt.Id)">@pt.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Position Duration</label>
+                                    <select name="positionDuration" class="form-control">
+                                        <option value="">-- Select Duration --</option>
+                                        @foreach (var dur in HRMS.Pages.PositionMasterModel.PositionDurations)
+                                        {
+                                            <option value="@dur" selected="@(Model.Input.PositionDuration == dur)">@dur</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Position Start Date</label>
+                                    <input type="date" name="positionStartDate" class="form-control"
+                                           value="@Model.Input.PositionStartDate?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Position End Date</label>
+                                    <input type="date" name="positionEndDate" class="form-control"
+                                           value="@Model.Input.PositionEndDate?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Activate Status</label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="isActive" value="true" @(Model.Input.IsActive ? "checked" : "") /> Active
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">@(Model.EditMode ? "Update Position" : "Save Position")</button>
+                            <a href="/PositionMaster" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            @if (Model.EditMode)
+            {
+                <div id="tab-assignment" class="pos-section">
+                    <div class="card">
+                        <div class="card-header"><h2>Worker Assignment</h2></div>
+                        <form method="post" asp-page-handler="SaveAssignments">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="positionID" value="@Model.Input.PositionID" />
+                            <div class="card-body table-responsive">
+                                <table class="data-table assign-table" id="assignmentTable">
+                                    <thead class="grid-header">
+                                        <tr>
+                                            <th>Employee ID Lookup</th>
+                                            <th>Assignment Start Date</th>
+                                            <th>Assignment End Date</th>
+                                            <th>Reason</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (Model.Assignments.Count == 0)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <select name="assignments[0].EmployeeID" class="form-control">
+                                                        <option value="0">-- Select Employee --</option>
+                                                        @foreach (var emp in Model.Employees)
+                                                        {
+                                                            <option value="@emp.Id">@emp.Name</option>
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td><input type="date" name="assignments[0].AssignmentStartDate" class="form-control" /></td>
+                                                <td><input type="date" name="assignments[0].AssignmentEndDate" class="form-control" /></td>
+                                                <td><input type="text" name="assignments[0].Reason" class="form-control" maxlength="250" /></td>
+                                                <td><button type="button" class="btn-icon btn-delete" onclick="removeAssignmentRow(this)">X</button></td>
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            for (int i = 0; i < Model.Assignments.Count; i++)
+                                            {
+                                                var row = Model.Assignments[i];
+                                                <tr>
+                                                    <td>
+                                                        <select name="assignments[@i].EmployeeID" class="form-control">
+                                                            <option value="0">-- Select Employee --</option>
+                                                            @foreach (var emp in Model.Employees)
+                                                            {
+                                                                <option value="@emp.Id" selected="@(row.EmployeeID == emp.Id)">@emp.Name</option>
+                                                            }
+                                                        </select>
+                                                    </td>
+                                                    <td><input type="date" name="assignments[@i].AssignmentStartDate" class="form-control" value="@row.AssignmentStartDate?.ToString("yyyy-MM-dd")" /></td>
+                                                    <td><input type="date" name="assignments[@i].AssignmentEndDate" class="form-control" value="@row.AssignmentEndDate?.ToString("yyyy-MM-dd")" /></td>
+                                                    <td><input type="text" name="assignments[@i].Reason" class="form-control" value="@row.Reason" maxlength="250" /></td>
+                                                    <td><button type="button" class="btn-icon btn-delete" onclick="removeAssignmentRow(this)">X</button></td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                                <button type="button" class="btn btn-secondary" style="margin-top:.75rem;" onclick="addAssignmentRow()">+ Add Assignment</button>
+                            </div>
+                            <div class="card-footer">
+                                <button type="submit" class="btn btn-primary">Save Worker Assignments</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="tab-benefit" class="pos-section">
+                    <div class="card">
+                        <div class="card-header"><h2>Benefit Entitlement</h2></div>
+                        <div class="card-body">
+                            <p style="color:var(--text-muted); font-size:.85rem; margin-bottom:1rem;">
+                                Benefit entitlements are chosen from assigned workers' <strong>Employee Master</strong> data.
+                                Save worker assignments first, then link or sync entitlements below.
+                            </p>
+
+                            <h4 style="font-size:.9rem; color:var(--gb-blue); margin-bottom:.5rem;">Assigned Worker Master Data</h4>
+                            @if (Model.WorkerEntitlementSources.Count == 0)
+                            {
+                                <p style="color:var(--text-muted); margin-bottom:1rem;">No workers assigned yet. Add workers in the Worker Assignment tab.</p>
+                            }
+                            else
+                            {
+                                <table class="data-table" style="margin-bottom:1.25rem;">
+                                    <thead class="grid-header">
+                                        <tr><th>Employee</th><th>Benefit Entitlement (Employee Master)</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var src in Model.WorkerEntitlementSources)
+                                        {
+                                            <tr>
+                                                <td>@src.EmployeeName</td>
+                                                <td>@src.EntitlementName</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+
+                            <form method="post" asp-page-handler="LinkEntitlement" style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1rem;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="positionID" value="@Model.Input.PositionID" />
+                                <div class="form-group" style="min-width:320px; margin:0;">
+                                    <label>Choose from Assigned Worker Entitlements</label>
+                                    <select name="benefitEntitlementID" class="form-control">
+                                        <option value="0">-- Select Entitlement --</option>
+                                        @foreach (var ent in Model.AvailableEntitlements)
+                                        {
+                                            <option value="@ent.Id">@ent.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary" @(Model.AvailableEntitlements.Count == 0 ? "disabled" : "")>Link Entitlement</button>
+                            </form>
+
+                            @if (Model.LinkedEntitlements.Count == 0)
+                            {
+                                <p style="color:var(--text-muted);">No benefit entitlements linked to this position yet.</p>
+                            }
+                            else
+                            {
+                                <table class="data-table">
+                                    <thead class="grid-header">
+                                        <tr><th>Entitlement</th><th>Alias</th><th>Actions</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var ent in Model.LinkedEntitlements)
+                                        {
+                                            <tr>
+                                                <td>@ent.EntitlementName</td>
+                                                <td>@ent.AliasName</td>
+                                                <td>
+                                                    <form method="post" asp-page-handler="UnlinkEntitlement" style="display:inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="positionID" value="@Model.Input.PositionID" />
+                                                        <input type="hidden" name="linkID" value="@ent.LinkID" />
+                                                        <button type="submit" class="btn-icon btn-delete" title="Remove">X</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </main>
+
+    @await Html.PartialAsync("_AppFooter")
+
+    @if (Model.ShowForm)
+    {
+        <script>
+            var employeeOptions = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.Employees.Select(e => new { id = e.Id, name = e.Name })));
+
+            function showPosTab(tab) {
+                document.querySelectorAll('.pos-tab').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+                });
+                document.querySelectorAll('.pos-section').forEach(function (s) {
+                    s.classList.toggle('active', s.id === 'tab-' + tab);
+                });
+            }
+
+            function addAssignmentRow() {
+                var tbody = document.querySelector('#assignmentTable tbody');
+                var idx = tbody.querySelectorAll('tr').length;
+                var opts = '<option value="0">-- Select Employee --</option>';
+                employeeOptions.forEach(function (e) { opts += '<option value="' + e.id + '">' + e.name + '</option>'; });
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td><select name="assignments[' + idx + '].EmployeeID" class="form-control">' + opts + '</select></td>' +
+                    '<td><input type="date" name="assignments[' + idx + '].AssignmentStartDate" class="form-control" /></td>' +
+                    '<td><input type="date" name="assignments[' + idx + '].AssignmentEndDate" class="form-control" /></td>' +
+                    '<td><input type="text" name="assignments[' + idx + '].Reason" class="form-control" maxlength="250" /></td>' +
+                    '<td><button type="button" class="btn-icon btn-delete" onclick="removeAssignmentRow(this)">X</button></td>';
+                tbody.appendChild(tr);
+            }
+
+            function removeAssignmentRow(btn) {
+                var tbody = document.querySelector('#assignmentTable tbody');
+                if (tbody.querySelectorAll('tr').length <= 1) return;
+                btn.closest('tr').remove();
+                tbody.querySelectorAll('tr').forEach(function (tr, i) {
+                    tr.querySelectorAll('[name^="assignments"]').forEach(function (el) {
+                        el.name = el.name.replace(/assignments\[\d+\]/, 'assignments[' + i + ']');
+                    });
+                });
+            }
+        </script>
+    }
+</body>
+</html>

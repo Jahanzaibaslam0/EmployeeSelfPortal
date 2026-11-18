@@ -1,0 +1,32 @@
+@page
+@model HRMS.Pages.ResetAdminModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reset Admin</title>
+    <style>
+        body{font-family:Segoe UI,Arial,sans-serif;padding:2rem;background:#f4f6fb}
+        .card{max-width:520px;margin:0 auto;background:#fff;border-radius:10px;padding:1.25rem;box-shadow:0 8px 28px rgba(0,0,0,.08)}
+        .ok{background:#ecfdf5;border-left:4px solid #059669;padding:.8rem;margin-bottom:1rem}
+        .err{background:#fef2f2;border-left:4px solid #dc2626;padding:.8rem;margin-bottom:1rem}
+        .btn{display:inline-block;padding:.5rem 1rem;background:#c8102e;color:#fff;text-decoration:none;border-radius:6px;border:0;cursor:pointer}
+        .btn2{display:inline-block;padding:.5rem 1rem;background:#e5e7eb;color:#111;text-decoration:none;border-radius:6px;margin-left:.4rem}
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Reset Admin Password</h2>
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="@(Model.AlertType == "success" ? "ok" : "err")">@Model.Message</div>
+    }
+    <p>Creates/updates <strong>admin</strong> / <strong>Admin@123</strong>.</p>
+    <p>
+        <a class="btn" href="/ResetAdmin?run=1">Reset Admin Now</a>
+        <a class="btn2" href="/InitDatabase">Init Database</a>
+        <a class="btn2" href="/Login">Login</a>
+    </p>
+</div>
+</body>
+</html>
