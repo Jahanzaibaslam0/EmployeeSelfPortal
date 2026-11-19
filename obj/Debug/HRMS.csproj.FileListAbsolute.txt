@@ -1,4 +1,3 @@
-D:\Project\HRMS\bin\HRMS.dll.config
 D:\Project\HRMS\bin\HRMS.dll
 D:\Project\HRMS\bin\HRMS.pdb
 D:\Project\HRMS\bin\ClosedXML.dll
