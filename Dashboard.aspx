@@ -247,11 +247,11 @@
   </div>
   <div class="kpi-card kpi-success">
     <div class="kpi-label">Attendance Rate %</div>
-    <div class="kpi-value" data-kpi="attendanceRate"><%= k.AttendanceRate.HasValue ? k.AttendanceRate.Value.ToString("0.0") : "—" %></div>
+    <div class="kpi-value" data-kpi="attendanceRate"><%= k.AttendanceRate.HasValue ? k.AttendanceRate.Value.ToString("0.0") : "\u2014" %></div>
   </div>
   <div class="kpi-card kpi-alert">
     <div class="kpi-label">Absenteeism Rate %</div>
-    <div class="kpi-value" data-kpi="absenteeismRate"><%= k.AbsenteeismRate.HasValue ? k.AbsenteeismRate.Value.ToString("0.0") : "—" %></div>
+    <div class="kpi-value" data-kpi="absenteeismRate"><%= k.AbsenteeismRate.HasValue ? k.AbsenteeismRate.Value.ToString("0.0") : "\u2014" %></div>
   </div>
   <div class="kpi-card">
     <div class="kpi-label">Open Vacancies</div>
@@ -375,7 +375,7 @@
 
 <asp:Content ID="Scripts" ContentPlaceHolderID="scripts" runat="server">
 <script type="application/json" id="chartData"><%= ChartJson %></script>
-<script src="<%= ResolveUrl("~/js/dashboard.js") %>?v=2"></script>
+<script src="<%= ResolveUrl("~/js/dashboard.js") %>?v=3"></script>
 <script>
 (function () {
     function val(id) {

@@ -33,6 +33,8 @@ namespace HRMS
         public string Title { get; set; } = "";
         public string Url { get; set; } = "";
         public string Icon { get; set; } = "";
+        public bool CanWrite { get; set; }
+        public string AccessLabel { get; set; } = "View";
     }
 
     public class SetupCategoryGroup

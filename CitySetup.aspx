@@ -37,7 +37,7 @@
 <div class="card mt-4">
     <div class="card-header space-between">
         <h2>City List</h2>
-        <input type="text" id="txtSearch" class="form-control" style="width:220px" placeholder="Search…" onkeyup="searchTable(this.value)" />
+        <input type="text" id="txtSearch" class="form-control" style="width:220px" placeholder="Search&hellip;" onkeyup="searchTable(this.value)" />
     </div>
     <div class="card-body table-responsive">
         <table class="data-table" id="dataTable">

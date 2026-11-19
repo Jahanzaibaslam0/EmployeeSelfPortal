@@ -57,7 +57,7 @@
   <div class="card-header space-between">
     <h2>Benefit List</h2>
     <input type="text" id="txtSearch" class="form-control" style="width:220px"
-           placeholder="Search…" onkeyup="searchBenefitTable(this.value)" />
+           placeholder="Search&hellip;" onkeyup="searchBenefitTable(this.value)" />
   </div>
   <div class="card-body table-responsive">
     <table class="data-table" id="dataTable">

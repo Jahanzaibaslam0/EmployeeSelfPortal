@@ -11,6 +11,8 @@ namespace HRMS
         public int Id { get; set; }
         public int DivisionID { get; set; }
         public string DivisionName { get; set; } = "";
+        public int DepartmentManagerID { get; set; }
+        public string DepartmentManagerName { get; set; } = "";
         public string Name { get; set; } = "";
         public string AliasName { get; set; } = "";
         public bool IsActive { get; set; } = true;
@@ -22,6 +24,7 @@ namespace HRMS
         public DepartmentRecord Input { get; set; } = new DepartmentRecord { IsActive = true };
         public List<DepartmentRecord> Records { get; set; } = new List<DepartmentRecord>();
         public List<LookupItem> Divisions { get; set; } = new List<LookupItem>();
+        public List<LookupItem> Employees { get; set; } = new List<LookupItem>();
         public string AlertMessage { get; set; } = "";
         public string AlertType { get; set; } = "success";
 
@@ -48,6 +51,7 @@ namespace HRMS
             LoadAlert(out var msg, out var typ);
             AlertMessage = msg; AlertType = typ;
             LoadDivisions();
+            LoadEmployees();
             if (editId.HasValue && editId > 0) LoadForEdit(editId.Value);
             LoadRecords();
         }
@@ -63,6 +67,7 @@ namespace HRMS
 
             var itemId = int.TryParse(Request.Form["itemId"], out var id) ? id : 0;
             var divisionId = int.TryParse(Request.Form["divisionID"], out var did) ? did : 0;
+            var managerId = int.TryParse(Request.Form["departmentManagerID"], out var mid) ? mid : 0;
             var name = FormString("itemName");
             var alias = FormString("aliasName");
             var isActive = FormBool("isActive");
@@ -77,14 +82,19 @@ namespace HRMS
                 using (var conn = new SqlConnection(Conn))
                 {
                     conn.Open();
+                    using (var ensure = new SqlCommand(@"
+IF COL_LENGTH(N'tblDepartment', N'DepartmentManagerID') IS NULL
+    ALTER TABLE tblDepartment ADD DepartmentManagerID INT NULL;", conn))
+                        ensure.ExecuteNonQuery();
                     if (itemId > 0)
                     {
                         using (var cmd = new SqlCommand(@"
-UPDATE tblDepartment SET DivisionID=@DivisionID, DepartmentName=@Name, AliasName=@Alias,
+UPDATE tblDepartment SET DivisionID=@DivisionID, DepartmentManagerID=@ManagerID, DepartmentName=@Name, AliasName=@Alias,
   IsActive=@IsActive, ModifiedOn=GETDATE(), ModifiedByUserID=@ModifiedByUserID WHERE DepartmentID=@ID;", conn))
                         {
                             cmd.Parameters.AddWithValue("@ID", itemId);
                             cmd.Parameters.AddWithValue("@DivisionID", divisionId <= 0 ? (object)DBNull.Value : divisionId);
+                            cmd.Parameters.AddWithValue("@ManagerID", managerId <= 0 ? (object)DBNull.Value : managerId);
                             cmd.Parameters.AddWithValue("@Name", name);
                             cmd.Parameters.AddWithValue("@Alias", string.IsNullOrWhiteSpace(alias) ? (object)DBNull.Value : alias);
                             cmd.Parameters.AddWithValue("@IsActive", isActive);
@@ -96,10 +106,11 @@ UPDATE tblDepartment SET DivisionID=@DivisionID, DepartmentName=@Name, AliasName
                     else
                     {
                         using (var cmd = new SqlCommand(@"
-INSERT INTO tblDepartment (DivisionID, DepartmentName, AliasName, IsActive, CreatedOn, CreatedByUserID)
-VALUES (@DivisionID,@Name,@Alias,@IsActive,GETDATE(),@CreatedByUserID);", conn))
+INSERT INTO tblDepartment (DivisionID, DepartmentManagerID, DepartmentName, AliasName, IsActive, CreatedOn, CreatedByUserID)
+VALUES (@DivisionID,@ManagerID,@Name,@Alias,@IsActive,GETDATE(),@CreatedByUserID);", conn))
                         {
                             cmd.Parameters.AddWithValue("@DivisionID", divisionId <= 0 ? (object)DBNull.Value : divisionId);
+                            cmd.Parameters.AddWithValue("@ManagerID", managerId <= 0 ? (object)DBNull.Value : managerId);
                             cmd.Parameters.AddWithValue("@Name", name);
                             cmd.Parameters.AddWithValue("@Alias", string.IsNullOrWhiteSpace(alias) ? (object)DBNull.Value : alias);
                             cmd.Parameters.AddWithValue("@IsActive", isActive);
@@ -151,13 +162,46 @@ VALUES (@DivisionID,@Name,@Alias,@IsActive,GETDATE(),@CreatedByUserID);", conn))
             }
         }
 
+        private void LoadEmployees()
+        {
+            Employees.Clear();
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                using (var cmd = new SqlCommand(@"
+IF COL_LENGTH(N'tblDepartment', N'DepartmentManagerID') IS NULL
+    ALTER TABLE tblDepartment ADD DepartmentManagerID INT NULL;", conn))
+                {
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch { }
+
+            using (var conn = new SqlConnection(Conn))
+            using (var cmd = new SqlCommand(@"
+SELECT EmployeeID, EmployeeCode + N' – ' + LTRIM(RTRIM(ISNULL(FirstName,'') + N' ' + ISNULL(LastName,'')))
+FROM tblEmployee WHERE Status = N'Active' ORDER BY EmployeeCode, FirstName;", conn))
+            {
+                conn.Open();
+                using (var dr = cmd.ExecuteReader())
+                    while (dr.Read())
+                        Employees.Add(new LookupItem { Id = dr.GetInt32(0), Name = dr.GetString(1) });
+            }
+        }
+
         private void LoadForEdit(int id)
         {
             using (var conn = new SqlConnection(Conn))
             using (var cmd = new SqlCommand(@"
 SELECT d.DepartmentID, ISNULL(d.DivisionID,0) DivisionID, ISNULL(v.DivisionName,'') DivisionName,
+       ISNULL(d.DepartmentManagerID,0) DepartmentManagerID,
+       LTRIM(RTRIM(ISNULL(e.FirstName,'') + N' ' + ISNULL(e.LastName,''))) ManagerName,
        d.DepartmentName, ISNULL(d.AliasName,'') AliasName, d.IsActive
-FROM tblDepartment d LEFT JOIN tblDivision v ON v.DivisionID=d.DivisionID WHERE d.DepartmentID=@ID;", conn))
+FROM tblDepartment d
+LEFT JOIN tblDivision v ON v.DivisionID=d.DivisionID
+LEFT JOIN tblEmployee e ON e.EmployeeID = d.DepartmentManagerID
+WHERE d.DepartmentID=@ID;", conn))
             {
                 cmd.Parameters.AddWithValue("@ID", id);
                 conn.Open();
@@ -168,6 +212,8 @@ FROM tblDepartment d LEFT JOIN tblDivision v ON v.DivisionID=d.DivisionID WHERE 
                             Id = Convert.ToInt32(dr["DepartmentID"]),
                             DivisionID = Convert.ToInt32(dr["DivisionID"]),
                             DivisionName = dr["DivisionName"].ToString() ?? "",
+                            DepartmentManagerID = Convert.ToInt32(dr["DepartmentManagerID"]),
+                            DepartmentManagerName = dr["ManagerName"] == DBNull.Value ? "" : dr["ManagerName"].ToString() ?? "",
                             Name = dr["DepartmentName"].ToString() ?? "",
                             AliasName = dr["AliasName"].ToString() ?? "",
                             IsActive = Convert.ToBoolean(dr["IsActive"])
@@ -181,8 +227,12 @@ FROM tblDepartment d LEFT JOIN tblDivision v ON v.DivisionID=d.DivisionID WHERE 
             using (var conn = new SqlConnection(Conn))
             using (var cmd = new SqlCommand(@"
 SELECT d.DepartmentID, ISNULL(d.DivisionID,0) DivisionID, ISNULL(v.DivisionName,'') DivisionName,
+       ISNULL(d.DepartmentManagerID,0) DepartmentManagerID,
+       LTRIM(RTRIM(ISNULL(e.FirstName,'') + N' ' + ISNULL(e.LastName,''))) ManagerName,
        d.DepartmentName, ISNULL(d.AliasName,'') AliasName, d.IsActive
-FROM tblDepartment d LEFT JOIN tblDivision v ON v.DivisionID=d.DivisionID
+FROM tblDepartment d
+LEFT JOIN tblDivision v ON v.DivisionID=d.DivisionID
+LEFT JOIN tblEmployee e ON e.EmployeeID = d.DepartmentManagerID
 ORDER BY d.IsActive DESC, d.DepartmentName;", conn))
             {
                 conn.Open();
@@ -193,6 +243,8 @@ ORDER BY d.IsActive DESC, d.DepartmentName;", conn))
                             Id = Convert.ToInt32(dr["DepartmentID"]),
                             DivisionID = Convert.ToInt32(dr["DivisionID"]),
                             DivisionName = dr["DivisionName"].ToString() ?? "",
+                            DepartmentManagerID = Convert.ToInt32(dr["DepartmentManagerID"]),
+                            DepartmentManagerName = dr["ManagerName"] == DBNull.Value ? "" : dr["ManagerName"].ToString() ?? "",
                             Name = dr["DepartmentName"].ToString() ?? "",
                             AliasName = dr["AliasName"].ToString() ?? "",
                             IsActive = Convert.ToBoolean(dr["IsActive"])

@@ -46,7 +46,7 @@
   <div class="card-header space-between">
     <h2>Benefit Entitlement List</h2>
     <input type="text" id="txtSearch" class="form-control" style="width:220px"
-           placeholder="Search…" onkeyup="searchBenefitEntitlementTable('entitlementTable', this.value)" />
+           placeholder="Search&hellip;" onkeyup="searchBenefitEntitlementTable('entitlementTable', this.value)" />
   </div>
   <div class="card-body table-responsive">
     <table class="data-table" id="entitlementTable">
@@ -90,7 +90,7 @@
 <% if (ManageEntitlementID > 0) { %>
 <div class="card mt-4">
   <div class="card-header space-between">
-    <h2>Manage Benefits — <%= Server.HtmlEncode(ManageEntitlementName) %></h2>
+    <h2>Manage Benefits &mdash; <%= Server.HtmlEncode(ManageEntitlementName) %></h2>
     <a href="/BenefitEntitlementSetup.aspx" class="btn btn-secondary">Close</a>
   </div>
   <div class="card-body">
@@ -100,7 +100,7 @@
         <select name="benefitID" id="benefitID" class="form-control">
           <option value="">-- Select Benefit --</option>
           <% foreach (var ben in AvailableBenefits) { %>
-          <option value="<%= ben.BenefitID %>"><%= Server.HtmlEncode(ben.BenefitCode + " — " + ben.BenefitName + " (" + ben.BenefitType + ")") %></option>
+          <option value="<%= ben.BenefitID %>"><%= Server.HtmlEncode(ben.BenefitCode + " \u2014 " + ben.BenefitName + " (" + ben.BenefitType + ")") %></option>
           <% } %>
         </select>
       </div>

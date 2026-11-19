@@ -12,7 +12,7 @@
   </div>
   <div class="card-body table-responsive">
     <table class="data-table">
-      <thead><tr><th>Code</th><th>Name</th><th>Search</th><th>City</th><th>Group</th><th>NTN</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Code</th><th>Name</th><th>Search</th><th>City</th><th>Group</th><th>NTN</th><th>Status</th><th>Profile %</th><th></th></tr></thead>
       <tbody>
       <% foreach (var c in Customers) { %>
       <tr>
@@ -23,6 +23,12 @@
         <td><%= Server.HtmlEncode(c.CustomerGroupName) %></td>
         <td><%= Server.HtmlEncode(c.NTN) %></td>
         <td><%= c.IsActive ? "Active" : "Inactive" %></td>
+        <td class="emp-complete-cell">
+          <div class="emp-complete-mini <%= c.CompletionTone %>" title="Customer profile completion">
+            <span><%= Server.HtmlEncode(c.CompletionDisplay) %></span>
+            <div class="track"><div class="fill" style="width:<%= c.CompletionBarWidth %>%;"></div></div>
+          </div>
+        </td>
         <td>
           <a href="/CustomerMaster.aspx?editId=<%= c.CustomerID %>">Edit</a>
           <% if (c.IsActive) { %>
@@ -31,7 +37,7 @@
         </td>
       </tr>
       <% } %>
-      <% if (Customers.Count == 0) { %><tr><td colspan="8">No customers found.</td></tr><% } %>
+      <% if (Customers.Count == 0) { %><tr><td colspan="9">No customers found.</td></tr><% } %>
       </tbody>
     </table>
   </div>
@@ -42,7 +48,27 @@
   <span><%= EditMode ? "Edit Customer" : "New Customer" %> <%= Server.HtmlEncode(Input.CustomerCode) %></span>
 </div>
 <div class="card">
-  <div class="card-header"><h2><%= EditMode ? "Edit Customer" : "Add Customer" %></h2></div>
+  <div class="card-header emp-profile-score-header">
+    <h2><%= EditMode ? "Edit Customer" : "Add Customer" %></h2>
+    <div class="emp-profile-score <%= ProfileScore.ToneClass %>">
+      <div class="emp-profile-score__top">
+        <span class="emp-profile-score__label">Profile completion</span>
+        <strong class="emp-profile-score__pct"><%= Server.HtmlEncode(ProfileScore.PercentDisplay) %></strong>
+      </div>
+      <div class="emp-profile-score__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= ProfileScore.BarWidth %>" aria-label="Customer profile completion">
+        <div class="emp-profile-score__fill" style="width:<%= ProfileScore.BarWidth %>%;"></div>
+      </div>
+      <div class="emp-profile-score__cats">
+        <% foreach (var cat in ProfileScore.Categories) { %>
+        <div class="emp-profile-score__cat">
+          <span><%= Server.HtmlEncode(cat.Name) %></span>
+          <strong><%= cat.Score.ToString("0.#") %>%</strong>
+          <em><%= Server.HtmlEncode(cat.Detail) %></em>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
   <div class="card-body">
     <input type="hidden" name="CustomerID" value="<%= Input.CustomerID %>" />
     <input type="hidden" name="EditMode" value="<%= EditMode ? "true" : "false" %>" />

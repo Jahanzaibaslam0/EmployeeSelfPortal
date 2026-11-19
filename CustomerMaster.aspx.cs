@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Web.UI;
 using HRMS.Services;
@@ -17,6 +19,11 @@ namespace HRMS
         public string CustomerGroupName { get; set; } = "";
         public string NTN { get; set; } = "";
         public bool IsActive { get; set; } = true;
+        public decimal CompletionPercent { get; set; }
+        public string CompletionDisplay => CompletionPercent.ToString("0.#", CultureInfo.InvariantCulture) + "%";
+        public string CompletionBarWidth => CompletionPercent.ToString("0.##", CultureInfo.InvariantCulture);
+        public string CompletionTone =>
+            CompletionPercent >= 100m ? "is-complete" : CompletionPercent >= 70m ? "is-good" : CompletionPercent >= 40m ? "is-mid" : "is-low";
     }
 
     public class CustomerInput
@@ -76,6 +83,8 @@ namespace HRMS
         public bool ShowForm { get; set; }
         public string AlertMessage { get; set; } = "";
         public string AlertType { get; set; } = "success";
+        public EmployeeProfileCompletionScore ProfileScore { get; private set; } = new EmployeeProfileCompletionScore();
+        private readonly MasterProfileCompletionService _profileCompletion = new MasterProfileCompletionService();
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -96,6 +105,7 @@ namespace HRMS
 
             var newCustomer = Request.QueryString["newCustomer"] == "1" || Request.QueryString["newCustomer"] == "true";
             OnGet(QueryInt("editId"), newCustomer);
+            if (ShowForm) RefreshProfileScore();
         }
 
         private void OnGet(int? editId, bool newCustomer)
@@ -226,6 +236,7 @@ WHERE CustomerID = @CustomerID;", conn))
             ShowForm = true;
             if (!EditMode)
                 Input.CustomerCode = GenerateNextCustomerCode();
+            RefreshProfileScore();
         }
 
         private void SaveRecord(SqlConnection conn, CustomerInput input, bool editMode)
@@ -361,6 +372,29 @@ ORDER BY c.IsActive DESC, c.CustomerCode;", conn))
                     }
                 }
             }
+            ApplyListCompletionScores();
+        }
+
+        private void ApplyListCompletionScores()
+        {
+            if (Customers == null || Customers.Count == 0) return;
+            try
+            {
+                var scores = _profileCompletion.ScoreCustomers(Customers.Select(c => c.CustomerID).ToList());
+                foreach (var row in Customers)
+                {
+                    EmployeeProfileCompletionScore score;
+                    if (scores.TryGetValue(row.CustomerID, out score) && score != null)
+                        row.CompletionPercent = score.Percent;
+                }
+            }
+            catch { }
+        }
+
+        private void RefreshProfileScore()
+        {
+            try { ProfileScore = _profileCompletion.CalculateCustomer(Input); }
+            catch { ProfileScore = new EmployeeProfileCompletionScore(); }
         }
 
         private void LoadForEdit(int customerId)
