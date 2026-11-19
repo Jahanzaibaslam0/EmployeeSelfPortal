@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Web.UI;
 using HRMS.Services;
@@ -17,6 +19,11 @@ namespace HRMS
         public string CustomerGroupName { get; set; } = "";
         public string NTN { get; set; } = "";
         public bool IsActive { get; set; } = true;
+        public decimal CompletionPercent { get; set; }
+        public string CompletionDisplay => CompletionPercent.ToString("0.#", CultureInfo.InvariantCulture) + "%";
+        public string CompletionBarWidth => CompletionPercent.ToString("0.##", CultureInfo.InvariantCulture);
+        public string CompletionTone =>
+            CompletionPercent >= 100m ? "is-complete" : CompletionPercent >= 70m ? "is-good" : CompletionPercent >= 40m ? "is-mid" : "is-low";
     }
 
     public class VendorInput
@@ -76,6 +83,8 @@ namespace HRMS
         public bool ShowForm { get; set; }
         public string AlertMessage { get; set; } = "";
         public string AlertType { get; set; } = "success";
+        public EmployeeProfileCompletionScore ProfileScore { get; private set; } = new EmployeeProfileCompletionScore();
+        private readonly MasterProfileCompletionService _profileCompletion = new MasterProfileCompletionService();
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -96,6 +105,7 @@ namespace HRMS
 
             var newVendor = Request.QueryString["newVendor"] == "1" || Request.QueryString["newVendor"] == "true";
             OnGet(QueryInt("editId"), newVendor);
+            if (ShowForm) RefreshProfileScore();
         }
 
         private void OnGet(int? editId, bool newVendor)
@@ -226,6 +236,7 @@ WHERE VendorID = @VendorID;", conn))
             ShowForm = true;
             if (!EditMode)
                 Input.VendorCode = GenerateNextVendorCode();
+            RefreshProfileScore();
         }
 
         private void SaveRecord(SqlConnection conn, VendorInput input, bool editMode)
@@ -361,6 +372,29 @@ ORDER BY v.IsActive DESC, v.VendorCode;", conn))
                     }
                 }
             }
+            ApplyListCompletionScores();
+        }
+
+        private void ApplyListCompletionScores()
+        {
+            if (Vendors == null || Vendors.Count == 0) return;
+            try
+            {
+                var scores = _profileCompletion.ScoreVendors(Vendors.Select(v => v.VendorID).ToList());
+                foreach (var row in Vendors)
+                {
+                    EmployeeProfileCompletionScore score;
+                    if (scores.TryGetValue(row.VendorID, out score) && score != null)
+                        row.CompletionPercent = score.Percent;
+                }
+            }
+            catch { }
+        }
+
+        private void RefreshProfileScore()
+        {
+            try { ProfileScore = _profileCompletion.CalculateVendor(Input); }
+            catch { ProfileScore = new EmployeeProfileCompletionScore(); }
         }
 
         private void LoadForEdit(int vendorId)

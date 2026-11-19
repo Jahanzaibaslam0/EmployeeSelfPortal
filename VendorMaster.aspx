@@ -12,7 +12,7 @@
   </div>
   <div class="card-body table-responsive">
     <table class="data-table">
-      <thead><tr><th>Code</th><th>Name</th><th>Search</th><th>City</th><th>Group</th><th>NTN</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Code</th><th>Name</th><th>Search</th><th>City</th><th>Group</th><th>NTN</th><th>Status</th><th>Profile %</th><th></th></tr></thead>
       <tbody>
       <% foreach (var v in Vendors) { %>
       <tr>
@@ -23,6 +23,12 @@
         <td><%= Server.HtmlEncode(v.CustomerGroupName) %></td>
         <td><%= Server.HtmlEncode(v.NTN) %></td>
         <td><%= v.IsActive ? "Active" : "Inactive" %></td>
+        <td class="emp-complete-cell">
+          <div class="emp-complete-mini <%= v.CompletionTone %>" title="Vendor profile completion">
+            <span><%= Server.HtmlEncode(v.CompletionDisplay) %></span>
+            <div class="track"><div class="fill" style="width:<%= v.CompletionBarWidth %>%;"></div></div>
+          </div>
+        </td>
         <td>
           <a href="/VendorMaster.aspx?editId=<%= v.VendorID %>">Edit</a>
           <% if (v.IsActive) { %>
@@ -31,7 +37,7 @@
         </td>
       </tr>
       <% } %>
-      <% if (Vendors.Count == 0) { %><tr><td colspan="8">No vendors found.</td></tr><% } %>
+      <% if (Vendors.Count == 0) { %><tr><td colspan="9">No vendors found.</td></tr><% } %>
       </tbody>
     </table>
   </div>
@@ -42,7 +48,27 @@
   <span><%= EditMode ? "Edit Vendor" : "New Vendor" %> <%= Server.HtmlEncode(Input.VendorCode) %></span>
 </div>
 <div class="card">
-  <div class="card-header"><h2><%= EditMode ? "Edit Vendor" : "Add Vendor" %></h2></div>
+  <div class="card-header emp-profile-score-header">
+    <h2><%= EditMode ? "Edit Vendor" : "Add Vendor" %></h2>
+    <div class="emp-profile-score <%= ProfileScore.ToneClass %>">
+      <div class="emp-profile-score__top">
+        <span class="emp-profile-score__label">Profile completion</span>
+        <strong class="emp-profile-score__pct"><%= Server.HtmlEncode(ProfileScore.PercentDisplay) %></strong>
+      </div>
+      <div class="emp-profile-score__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= ProfileScore.BarWidth %>" aria-label="Vendor profile completion">
+        <div class="emp-profile-score__fill" style="width:<%= ProfileScore.BarWidth %>%;"></div>
+      </div>
+      <div class="emp-profile-score__cats">
+        <% foreach (var cat in ProfileScore.Categories) { %>
+        <div class="emp-profile-score__cat">
+          <span><%= Server.HtmlEncode(cat.Name) %></span>
+          <strong><%= cat.Score.ToString("0.#") %>%</strong>
+          <em><%= Server.HtmlEncode(cat.Detail) %></em>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
   <div class="card-body">
     <input type="hidden" name="VendorID" value="<%= Input.VendorID %>" />
     <input type="hidden" name="EditMode" value="<%= EditMode ? "true" : "false" %>" />

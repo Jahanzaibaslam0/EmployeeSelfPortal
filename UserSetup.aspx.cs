@@ -15,6 +15,8 @@ namespace HRMS
         public string Email { get; set; } = "";
         public bool IsActive { get; set; } = true;
         public bool IsAdmin { get; set; }
+        public bool TwoFactorEnabled { get; set; }
+        public bool IsLocked { get; set; }
     }
 
     public partial class UserSetupPage : AppBasePage
@@ -40,6 +42,16 @@ namespace HRMS
                     SoftDelete(int.TryParse(Request.Form["deleteId"], out var d) ? d : 0);
                     return;
                 }
+                if (string.Equals(handler, "Disable2FA", StringComparison.OrdinalIgnoreCase))
+                {
+                    AdminDisable2Fa(int.TryParse(Request.Form["userId"], out var u2) ? u2 : 0);
+                    return;
+                }
+                if (string.Equals(handler, "Unlock", StringComparison.OrdinalIgnoreCase))
+                {
+                    AdminUnlock(int.TryParse(Request.Form["userId"], out var u3) ? u3 : 0);
+                    return;
+                }
                 Save();
                 return;
             }
@@ -50,6 +62,7 @@ namespace HRMS
         {
             LoadAlert(out var msg, out var typ);
             AlertMessage = msg; AlertType = typ;
+            try { new AccountSecurityService().EnsureSchema(); } catch { }
             if (editId.HasValue && editId > 0) LoadForEdit(editId.Value);
             else Input.UserCode = GenerateNextUserCode();
             LoadUsers();
@@ -79,9 +92,16 @@ namespace HRMS
                 Response.Redirect("~/UserSetup.aspx" + (userId > 0 ? "?editId=" + userId : ""));
                 return;
             }
+            if (!string.IsNullOrWhiteSpace(newPassword) && !PasswordHelper.TryValidatePolicy(newPassword, username, out var pwdError))
+            {
+                SetAlert(pwdError, "error");
+                Response.Redirect("~/UserSetup.aspx" + (userId > 0 ? "?editId=" + userId : ""));
+                return;
+            }
 
             try
             {
+                new AccountSecurityService().EnsureSchema();
                 using (var conn = new SqlConnection(Conn))
                 {
                     conn.Open();
@@ -101,22 +121,28 @@ UPDATE tblUser SET UserCode=@Code, Username=@Username, FullName=@FullName, Email
                             cmd.ExecuteNonQuery();
                         }
                         if (!string.IsNullOrWhiteSpace(newPassword))
-                        {
-                            using (var cmd = new SqlCommand("UPDATE tblUser SET PasswordHash=@Hash WHERE UserID=@ID;", conn))
-                            {
-                                cmd.Parameters.AddWithValue("@ID", userId);
-                                cmd.Parameters.AddWithValue("@Hash", PasswordHelper.HashPassword(newPassword));
-                                cmd.ExecuteNonQuery();
-                            }
-                        }
+                            new AccountSecurityService().AdminSetPassword(userId, newPassword, mustChange: true, Auth.CurrentUserId ?? 0);
                         SetAlert("User updated successfully.");
                     }
                     else
                     {
-                        if (string.IsNullOrWhiteSpace(newPassword)) newPassword = "ChangeMe@123";
+                        if (string.IsNullOrWhiteSpace(newPassword))
+                        {
+                            SetAlert("Password is required for a new user. " + PasswordHelper.PolicySummary, "error");
+                            Response.Redirect("~/UserSetup.aspx");
+                            return;
+                        }
+                        if (!PasswordHelper.TryValidatePolicy(newPassword, username, out var newPwdError))
+                        {
+                            SetAlert(newPwdError, "error");
+                            Response.Redirect("~/UserSetup.aspx");
+                            return;
+                        }
+                        int newUserId;
                         using (var cmd = new SqlCommand(@"
-INSERT INTO tblUser (UserCode, Username, PasswordHash, FullName, Email, IsActive, IsAdmin, CreatedOn)
-VALUES (@Code,@Username,@Hash,@FullName,@Email,@IsActive,@IsAdmin,GETDATE());", conn))
+INSERT INTO tblUser (UserCode, Username, PasswordHash, FullName, Email, IsActive, IsAdmin, CreatedOn, MustChangePassword, SecurityStamp)
+VALUES (@Code,@Username,@Hash,@FullName,@Email,@IsActive,@IsAdmin,GETDATE(),1,@Stamp);
+SELECT CAST(SCOPE_IDENTITY() AS INT);", conn))
                         {
                             cmd.Parameters.AddWithValue("@Code", string.IsNullOrWhiteSpace(userCode) ? (object)DBNull.Value : userCode);
                             cmd.Parameters.AddWithValue("@Username", username);
@@ -125,9 +151,11 @@ VALUES (@Code,@Username,@Hash,@FullName,@Email,@IsActive,@IsAdmin,GETDATE());", 
                             cmd.Parameters.AddWithValue("@Email", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email);
                             cmd.Parameters.AddWithValue("@IsActive", isActive);
                             cmd.Parameters.AddWithValue("@IsAdmin", isAdmin);
-                            cmd.ExecuteNonQuery();
+                            cmd.Parameters.AddWithValue("@Stamp", AccountSecurityService.NewStamp());
+                            newUserId = Convert.ToInt32(cmd.ExecuteScalar());
                         }
-                        SetAlert("User added successfully.");
+                        Perms.GrantDefaultUserPermissions(newUserId);
+                        SetAlert("User added. They must change the password on first sign-in.");
                     }
                 }
             }
@@ -172,7 +200,8 @@ VALUES (@Code,@Username,@Hash,@FullName,@Email,@IsActive,@IsAdmin,GETDATE());", 
         private void LoadForEdit(int id)
         {
             using (var conn = new SqlConnection(Conn))
-            using (var cmd = new SqlCommand("SELECT UserID, UserCode, Username, FullName, Email, IsActive, IsAdmin FROM tblUser WHERE UserID=@ID;", conn))
+            using (var cmd = new SqlCommand(@"SELECT UserID, UserCode, Username, FullName, Email, IsActive, IsAdmin,
+ISNULL(TwoFactorEnabled,0) AS TwoFactorEnabled, LockoutUntil FROM tblUser WHERE UserID=@ID;", conn))
             {
                 cmd.Parameters.AddWithValue("@ID", id);
                 conn.Open();
@@ -188,7 +217,9 @@ VALUES (@Code,@Username,@Hash,@FullName,@Email,@IsActive,@IsAdmin,GETDATE());", 
                             FullName = dr["FullName"].ToString() ?? "",
                             Email = dr["Email"] == DBNull.Value ? "" : dr["Email"].ToString() ?? "",
                             IsActive = Convert.ToBoolean(dr["IsActive"]),
-                            IsAdmin = Convert.ToBoolean(dr["IsAdmin"])
+                            IsAdmin = Convert.ToBoolean(dr["IsAdmin"]),
+                            TwoFactorEnabled = Convert.ToBoolean(dr["TwoFactorEnabled"]),
+                            IsLocked = dr["LockoutUntil"] != DBNull.Value && Convert.ToDateTime(dr["LockoutUntil"]) > DateTime.Now
                         };
                     }
                 }
@@ -219,6 +250,40 @@ VALUES (@Code,@Username,@Hash,@FullName,@Email,@IsActive,@IsAdmin,GETDATE());", 
                     }
                 }
             }
+        }
+
+        private void AdminDisable2Fa(int userId)
+        {
+            if (!Perms.CanWrite("UserSetup") || userId <= 0)
+            {
+                SetAlert(PermissionService.AccessRestrictedMessage, "error");
+                Response.Redirect("~/UserSetup.aspx");
+                return;
+            }
+            new AccountSecurityService().AdminDisableTwoFactor(userId, Auth.CurrentUserId ?? 0);
+            SetAlert("Two-factor authentication disabled for this user.");
+            Response.Redirect("~/UserSetup.aspx?editId=" + userId);
+        }
+
+        private void AdminUnlock(int userId)
+        {
+            if (!Perms.CanWrite("UserSetup") || userId <= 0)
+            {
+                SetAlert(PermissionService.AccessRestrictedMessage, "error");
+                Response.Redirect("~/UserSetup.aspx");
+                return;
+            }
+            new AccountSecurityService().EnsureSchema();
+            using (var conn = new SqlConnection(Conn))
+            using (var cmd = new SqlCommand("UPDATE tblUser SET FailedLoginCount=0, LockoutUntil=NULL WHERE UserID=@ID;", conn))
+            {
+                cmd.Parameters.AddWithValue("@ID", userId);
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+            Audit.Log("AdminUnlock", "User", userId, null, "UserSetup", "/UserSetup", "Unlock", "Administrator cleared lockout");
+            SetAlert("Sign-in lockout cleared.");
+            Response.Redirect("~/UserSetup.aspx?editId=" + userId);
         }
 
         private string GenerateNextUserCode()

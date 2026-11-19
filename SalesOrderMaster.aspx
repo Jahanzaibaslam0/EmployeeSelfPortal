@@ -39,7 +39,7 @@
   <div class="card-header so-list-header">
     <h2>Sales Order List</h2>
     <div class="right-controls">
-      <input type="text" id="txtSearch" class="form-control" style="width:260px" placeholder="Search SO / customer / status…" onkeyup="searchSOTable(this.value)" />
+      <input type="text" id="txtSearch" class="form-control" style="width:260px" placeholder="Search SO / customer / status&hellip;" onkeyup="searchSOTable(this.value)" />
       <a href="/SalesOrderMaster.aspx?newSO=1" class="btn btn-primary">+ New Sales Order</a>
     </div>
   </div>

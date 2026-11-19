@@ -54,9 +54,9 @@
           <td><%= Server.HtmlEncode(r.TrainingCode) %></td>
           <td><%= Server.HtmlEncode(r.MandatoryTrainingStatus) %></td>
           <td><%= Server.HtmlEncode(r.TrainingDepartment) %></td>
-          <td><%= r.LastTrainingDate.HasValue ? r.LastTrainingDate.Value.ToString("dd-MMM-yyyy") : "—" %></td>
-          <td><%= r.NextTrainingDue.HasValue ? r.NextTrainingDue.Value.ToString("dd-MMM-yyyy") : "—" %></td>
-          <td><%= r.TrainingHoursYTD.HasValue ? r.TrainingHoursYTD.Value.ToString("0.##") : "—" %></td>
+          <td><%= r.LastTrainingDate.HasValue ? r.LastTrainingDate.Value.ToString("dd-MMM-yyyy") : "\u2014" %></td>
+          <td><%= r.NextTrainingDue.HasValue ? r.NextTrainingDue.Value.ToString("dd-MMM-yyyy") : "\u2014" %></td>
+          <td><%= r.TrainingHoursYTD.HasValue ? r.TrainingHoursYTD.Value.ToString("0.##") : "\u2014" %></td>
           <td class="actions-col">
             <a class="btn-icon btn-edit" href="<%= ResolveUrl("~/TrainingMaster.aspx") %>?editId=<%= r.EmployeeTrainingID %>">Edit</a>
             <button type="submit" class="btn-icon btn-delete" title="Delete"

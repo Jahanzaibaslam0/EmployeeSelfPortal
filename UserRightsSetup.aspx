@@ -37,7 +37,7 @@
 
 <% if (!SelectedIsAdmin) { %>
 <div class="card mt-4">
-  <div class="card-header"><h2>Data Access Scope — <%= Server.HtmlEncode(SelectedFullName) %></h2></div>
+  <div class="card-header"><h2>Data Access Scope &mdash; <%= Server.HtmlEncode(SelectedFullName) %></h2></div>
   <div class="card-body">
     <div class="form-grid">
       <div class="form-group"><label>Scope Mode</label>
@@ -74,7 +74,7 @@
 
 <div class="card mt-4">
   <div class="card-header space-between">
-    <h2>Form Rights — <%= Server.HtmlEncode(SelectedFullName) %></h2>
+    <h2>Form Rights &mdash; <%= Server.HtmlEncode(SelectedFullName) %></h2>
     <div>
       <button type="button" class="btn btn-secondary" onclick="checkAll('read',true)">All Read</button>
       <button type="button" class="btn btn-secondary" onclick="checkAll('write',true)">All Write</button>

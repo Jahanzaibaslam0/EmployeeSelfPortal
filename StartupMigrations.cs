@@ -20,6 +20,10 @@ namespace HRMS
             {
                 DatabaseBootstrap.EnsureCoreSchema(connStr);
                 new AuthService().EnsureUserTableAndAdmin();
+                new AccountSecurityService().EnsureSchema();
+                new ProfileChangeRequestService().EnsureSchema();
+                new AppInboxService().EnsureSchema();
+                new ContactChangeWorkflowService().EnsureSchema();
             }
             catch
             {
@@ -42,7 +46,11 @@ namespace HRMS
                         using (var cmd = new SqlCommand(@"
                             IF NOT EXISTS (SELECT 1 FROM tblAppForm WHERE FormKey = @Key)
                             INSERT INTO tblAppForm (FormKey, FormName, PagePath, Category, SortOrder)
-                            VALUES (@Key, @Name, @Path, @Category, @Order);", conn))
+                            VALUES (@Key, @Name, @Path, @Category, @Order);
+                            ELSE IF @Key IN (N'DesignationSetup', N'EmployeeCategorySetup')
+                            UPDATE tblAppForm
+                            SET FormName = @Name, PagePath = @Path, Category = @Category, SortOrder = @Order
+                            WHERE FormKey = @Key;", conn))
                         {
                             cmd.Parameters.AddWithValue("@Key", form.Key);
                             cmd.Parameters.AddWithValue("@Name", form.Name);
