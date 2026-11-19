@@ -1,18 +1,48 @@
 using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Data.SqlClient;
+using System.Text;
 using System.Web;
 
 namespace HRMS.Services
 {
+    public class AuditEntry
+    {
+        public DateTime ActionAt { get; set; }
+        public string Username { get; set; } = "";
+        public string ActionType { get; set; } = "";
+        public string EntityType { get; set; } = "";
+        public string EntityName { get; set; } = "";
+        public string Details { get; set; } = "";
+        public string HandlerName { get; set; } = "";
+    }
+
     public class AuditService
     {
         private readonly string _conn;
-        private readonly AuthService _auth = new AuthService();
 
         public AuditService()
         {
             _conn = ConfigurationManager.ConnectionStrings["HRMSConnection"]?.ConnectionString ?? "";
+        }
+
+        private static int? SessionUserId
+        {
+            get
+            {
+                var session = HttpContext.Current?.Session;
+                return session == null ? null : SessionHelper.GetInt32(session, "UserID");
+            }
+        }
+
+        private static string SessionUsername
+        {
+            get
+            {
+                var session = HttpContext.Current?.Session;
+                return session == null ? "" : SessionHelper.GetString(session, "Username");
+            }
         }
 
         public void Log(
@@ -41,8 +71,8 @@ namespace HRMS.Services
                     (GETDATE(), @UserID, @Username, @FormKey, @PagePath, @HandlerName,
                      @ActionType, @EntityType, @EntityID, @EntityName, @Details, @IpAddress, @Success);", conn))
                 {
-                    cmd.Parameters.AddWithValue("@UserID", (object)userId ?? (object)_auth.CurrentUserId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Username", (object)username ?? (object)_auth.CurrentUsername ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@UserID", (object)userId ?? (object)SessionUserId ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Username", (object)username ?? (object)(string.IsNullOrEmpty(SessionUsername) ? null : SessionUsername) ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@FormKey", (object)formKey ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@PagePath", (object)pagePath ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@HandlerName", (object)handlerName ?? DBNull.Value);
@@ -82,16 +112,84 @@ namespace HRMS.Services
 
         public void LogLogout()
         {
+            var userId = SessionUserId;
+            var username = SessionUsername;
             Log(
                 actionType: "Logout",
                 entityType: "User",
-                entityId: _auth.CurrentUserId,
-                entityName: _auth.CurrentUsername,
+                entityId: userId,
+                entityName: username,
                 formKey: "Login",
                 pagePath: "/Login",
                 handlerName: "OnGetLogout",
-                userId: _auth.CurrentUserId,
-                username: _auth.CurrentUsername);
+                userId: userId,
+                username: username);
+        }
+
+        public List<AuditEntry> ListContactHub(int contactId, IList<int> addressIds)
+        {
+            var list = new List<AuditEntry>();
+            if (contactId <= 0 || string.IsNullOrWhiteSpace(_conn)) return list;
+            var ids = new List<int>();
+            if (addressIds != null)
+            {
+                foreach (var id in addressIds)
+                    if (id > 0 && !ids.Contains(id)) ids.Add(id);
+            }
+
+            var sql = new StringBuilder(@"
+SELECT TOP 200 ActionAt, ISNULL(Username,''), ISNULL(ActionType,''), ISNULL(EntityType,''),
+       ISNULL(EntityName,''), ISNULL(Details,''), ISNULL(HandlerName,'')
+FROM tblAuditLog
+WHERE FormKey=@FormKey AND (
+    (ISNULL(EntityType,N'Contact') IN (N'Contact', N'ContactChange') AND EntityID=@ContactID)
+    OR (Details LIKE @Token)
+");
+            if (ids.Count > 0)
+            {
+                sql.Append("    OR (EntityType=N'ContactAddress' AND EntityID IN (");
+                for (var i = 0; i < ids.Count; i++)
+                {
+                    if (i > 0) sql.Append(',');
+                    sql.Append("@A").Append(i);
+                }
+                sql.Append("))");
+            }
+            sql.Append(@"
+)
+ORDER BY ActionAt DESC;");
+
+            try
+            {
+                using (var conn = new SqlConnection(_conn))
+                using (var cmd = new SqlCommand(sql.ToString(), conn))
+                {
+                    cmd.Parameters.AddWithValue("@FormKey", "ContactMaster");
+                    cmd.Parameters.AddWithValue("@ContactID", contactId);
+                    cmd.Parameters.AddWithValue("@Token", "%ContactID=" + contactId + ";%");
+                    for (var i = 0; i < ids.Count; i++)
+                        cmd.Parameters.AddWithValue("@A" + i, ids[i]);
+                    conn.Open();
+                    using (var dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            list.Add(new AuditEntry
+                            {
+                                ActionAt = dr.GetDateTime(0),
+                                Username = dr.GetString(1),
+                                ActionType = dr.GetString(2),
+                                EntityType = dr.GetString(3),
+                                EntityName = dr.GetString(4),
+                                Details = dr.GetString(5),
+                                HandlerName = dr.GetString(6)
+                            });
+                        }
+                    }
+                }
+            }
+            catch { }
+            return list;
         }
 
         private static string Truncate(string value, int max)

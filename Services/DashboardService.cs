@@ -209,7 +209,7 @@ public class DashboardService
               AND NOT EXISTS (
                   SELECT 1 FROM tblPositionWorkerAssignment a
                   WHERE a.PositionID = p.PositionID
-                    AND (a.AssignmentEndDate IS NULL OR a.AssignmentEndDate >= CAST(GETDATE() AS DATE))
+                    AND a.AssignmentEndDate IS NULL
               );", conn))
         {
             kpis.OpenVacancies = (int)cmd.ExecuteScalar();
@@ -405,7 +405,7 @@ public class DashboardService
                         WHEN NOT EXISTS (
                             SELECT 1 FROM tblPositionWorkerAssignment a
                             WHERE a.PositionID = p.PositionID
-                              AND (a.AssignmentEndDate IS NULL OR a.AssignmentEndDate >= CAST(GETDATE() AS DATE))
+                              AND a.AssignmentEndDate IS NULL
                         ) THEN 'Vacant'
                         ELSE 'Filled'
                     END AS Label

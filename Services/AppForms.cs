@@ -29,6 +29,8 @@ public static class AppForms
         new("Home",                    "Home",                     "/Home",                    "Transactions",       0),
         new("Dashboard",               "HRMS Dashboard",           "/Dashboard",               "Transactions",       1),
         new("UserProfile",             "My Profile",               "/UserProfile",             "Transactions",       2),
+        new("ProfileChange",           "Profile Update Requests",  "/ProfileChangeReview",     "Transactions",       2),
+        new("AccountSettings",         "Account Settings",         "/AccountSettings",         "Transactions",       2),
         new("MyDocuments",             "My Documents",             "/MyDocuments",             "Transactions",       3),
         new("LmsLibrary",              "Knowledge Library",        "/LmsLibrary",              "Transactions",       4),
         new("EmployeeMaster",          "Employee Master",          "/EmployeeMaster",          "Transactions",       5),
@@ -43,11 +45,20 @@ public static class AppForms
         new("TrainingMaster",          "Employee Training",        "/TrainingMaster",          "Transactions",      14),
         new("RecruitmentMaster",       "Recruitment Process",      "/RecruitmentMaster",       "Transactions",      15),
         new("LeaveMaster",             "Leave Management",         "/LeaveMaster",             "Transactions",      16),
-        new("CustomerMaster",          "Customer Master",          "/CustomerMaster",          "Transactions",      17),
-        new("ContactMaster",           "Contact Master",           "/ContactMaster",           "Transactions",      18),
-        new("ProductMaster",           "Product Master",           "/ProductMaster",           "Transactions",      19),
-        new("InvoiceMaster",           "Invoice Master",           "/InvoiceMaster",           "Transactions",      20),
+        new("LeaveHR",                 "Leave Management - HR Manager","/LeaveMaster",         "Transactions",      16),
+        new("EmployeeAttendance",      "Employee Attendance",      "/EmployeeAttendance",      "Transactions",      17),
+        new("EmployeeRequest",         "Employee Requests",        "/EmployeeRequest",         "Transactions",      18),
+        new("EmployeeRequestHR",       "Employee Request - HR",    "/EmployeeRequest",         "Transactions",      19),
+        new("EmployeeRequestManagement","Employee Request - Management","/EmployeeRequest",    "Transactions",      20),
+        new("EmployeeDiscipline",      "Employee Discipline",      "/EmployeeDiscipline",     "Transactions",      21),
+        new("CustomerMaster",          "Customer Master",          "/CustomerMaster",          "Transactions",      22),
+        new("ContactMaster",           "Contact Master",           "/ContactMaster",           "Transactions",      23),
+        new("ProductMaster",           "Product Master",           "/ProductMaster",           "Transactions",      24),
+        new("ProductBatchMaster",      "Product Batch Management", "/ProductBatchMaster",      "Transactions",      25),
+        new("ProductSerialization",    "Product Serialization",    "/ProductSerialization",    "Transactions",      26),
+        new("InvoiceMaster",           "Invoice Master",           "/InvoiceMaster",           "Transactions",      27),
 
+        new("MasterSetup",             "Master Setup",             "/MasterSetup",             "Organization Setup", 1),
         new("DivisionSetup",           "Division Setup",           "/DivisionSetup",           "Organization Setup", 10),
         new("BusinessSegmentSetup",    "Business Segment Setup",   "/BusinessSegmentSetup",    "Organization Setup", 11),
         new("BusinessUnitSetup",       "Business Unit Setup",      "/BusinessUnitSetup",       "Organization Setup", 12),
@@ -84,7 +95,9 @@ public static class AppForms
         new("GradeSetup",              "Grade Setup",              "/GradeSetup",              "Employee Setup",     33),
         new("EmploymentTypeSetup",     "Employment Type Setup",    "/EmploymentTypeSetup",     "Employee Setup",     34),
         new("DesignationLevelSetup",   "Designation Level Setup",  "/DesignationLevelSetup",   "Employee Setup",     35),
+        new("DesignationSetup",        "Designation Setup",        "/DesignationSetup",        "Employee Setup",     36),
         new("TitleSetup",              "Title Setup",              "/TitleSetup",              "Employee Setup",     36),
+        new("EmployeeCategorySetup",   "Employee Category Setup",  "/EmployeeCategorySetup",   "Employee Setup",     43),
         new("EmploymentStatusSetup",   "Employment Status Setup",  "/EmploymentStatusSetup",   "Employee Setup",     37),
         new("BenefitSetup",            "Benefit Setup",            "/BenefitSetup",            "Employee Setup",     38),
         new("BenefitEntitlementSetup", "Benefit Entitlement Setup","/BenefitEntitlementSetup", "Employee Setup",     39),
@@ -95,6 +108,7 @@ public static class AppForms
         new("JobSetup",                "Job Setup",                "/JobSetup",                "Employee Setup",     44),
         new("WorkerLocationSetup",     "Worker Location Setup",    "/WorkerLocationSetup",     "Employee Setup",     45),
         new("DocumentTypeSetup",       "Document Type Setup",      "/DocumentTypeSetup",       "Employee Setup",     46),
+        new("AttendanceMethodSetup",   "Attendance Method Setup",  "/AttendanceMethodSetup",   "Employee Setup",     47),
 
         new("ModeOfDeliverySetup",     "Mode of Delivery Setup",   "/ModeOfDeliverySetup",     "Customer Setup",     60),
         new("MethodOfPaymentSetup",    "Method of Payment Setup",  "/MethodOfPaymentSetup",    "Customer Setup",     61),
@@ -104,6 +118,12 @@ public static class AppForms
         new("BillPreferenceSetup",     "Bill Preference Setup",    "/BillPreferenceSetup",     "Customer Setup",     65),
         new("TaxGroupSetup",           "Tax Group Setup",          "/TaxGroupSetup",           "Customer Setup",     66),
         new("FBRStatusSetup",          "FBR Status Setup",         "/FBRStatusSetup",          "Customer Setup",     67),
+        new("CountrySetup",            "Country Setup",            "/CountrySetup",            "Customer Setup",     68),
+        new("StateSetup",              "State Setup",              "/StateSetup",              "Customer Setup",     69),
+        new("ContactCitySetup",        "City Setup",               "/ContactCitySetup",        "Customer Setup",     70),
+        new("PostalSetup",             "Postal Setup",             "/PostalSetup",             "Customer Setup",     71),
+        new("StreetSetup",             "Street Setup",             "/StreetSetup",             "Customer Setup",     72),
+        new("ContactLocationSetup",    "Contact Address Lookups",  "/ContactLocationSetup",    "Customer Setup",     73),
 
         new("ProductNatureSetup",      "Product Nature Setup",     "/ProductNatureSetup",      "Product Setup",      70),
         new("InventoryTypeSetup",      "Inventory Type Setup",     "/InventoryTypeSetup",      "Product Setup",      71),
@@ -143,6 +163,10 @@ public static class AppForms
         var hash = p.IndexOf('#');
         if (hash >= 0) p = p.Substring(0, hash);
         p = p.Replace('\\', '/').TrimEnd('/');
+        if (p.StartsWith("~/", StringComparison.Ordinal))
+            p = p.Substring(1);
+        else if (p == "~")
+            p = "/";
         if (p.EndsWith(".aspx", StringComparison.OrdinalIgnoreCase))
             p = p.Substring(0, p.Length - 5);
         if (!p.StartsWith("/"))
@@ -152,5 +176,13 @@ public static class AppForms
 
     public static FormDef FindByKey(string key)
         => All.FirstOrDefault(f => f.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Configuration pages listed on Master Setup (excludes transactions and the hub itself).</summary>
+    public static bool IsSetupCatalogForm(FormDef form)
+    {
+        if (form == null) return false;
+        if (form.Key.Equals("MasterSetup", StringComparison.OrdinalIgnoreCase)) return false;
+        return !string.Equals(form.Category, "Transactions", StringComparison.OrdinalIgnoreCase);
+    }
 }
 }

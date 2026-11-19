@@ -12,9 +12,12 @@ public static class InputValidators
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex PhoneCharsRegex = new Regex(@"^[\d\s\-\+\(\)\.]+$", RegexOptions.Compiled);
+    private static readonly Regex NationalIdRegex = new Regex(@"^\d{5}-\d{7}-\d$", RegexOptions.Compiled);
 
     public const string InvalidEmailMessage = "Enter a valid email address (e.g. name@company.com).";
     public const string InvalidPhoneMessage = "Enter a valid phone number (7–15 digits; +, spaces, and dashes allowed).";
+    public const string InvalidNationalIdMessage =
+        "National ID Number must be in the format 42101-1234567-8 (5 digits - 7 digits - 1 digit).";
 
     public static bool IsValidEmail(string value, bool required = false)
     {
@@ -88,6 +91,35 @@ public static class InputValidators
         return true;
     }
 
+    public static bool IsValidNationalId(string value, bool required = false)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return !required;
+        return NationalIdRegex.IsMatch(value.Trim());
+    }
+
+    public static bool TryValidateNationalId(string value, out string error, bool required = false, string fieldLabel = "National ID Number")
+    {
+        error = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            if (required)
+            {
+                error = fieldLabel + " is required.";
+                return false;
+            }
+            return true;
+        }
+
+        if (!IsValidNationalId(value))
+        {
+            error = InvalidNationalIdMessage;
+            return false;
+        }
+
+        return true;
+    }
+
     public static bool IsEmailContactType(string contactType)
         => contactType?.Equals("PersonalEmail", StringComparison.OrdinalIgnoreCase) == true
            || contactType?.Equals("OfficialEmail", StringComparison.OrdinalIgnoreCase) == true;
@@ -128,6 +160,48 @@ public static class InputValidators
         if (!TryValidatePhone(mobile, out error, required: false, "Mobile")) return false;
         if (!TryValidatePhone(whatsapp, out error, required: false, "WhatsApp")) return false;
         if (!TryValidatePhone(fax, out error, required: false, "Fax")) return false;
+        return TryValidateContactMasterNoRepeat(email, phone, mobile, whatsapp, fax, out error);
+    }
+
+    public static string NormalizeContactPhone(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+        return new string(value.Where(char.IsDigit).ToArray());
+    }
+
+    public static string NormalizeContactEmail(string value)
+        => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant();
+
+    public static bool TryValidateContactMasterNoRepeat(
+        string email,
+        string phone,
+        string mobile,
+        string whatsapp,
+        string fax,
+        out string error)
+    {
+        error = null;
+        var phoneFields = new[]
+        {
+            ("Phone", phone),
+            ("Mobile", mobile),
+            ("WhatsApp", whatsapp),
+            ("Fax", fax)
+        };
+
+        var seenPhones = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var pair in phoneFields)
+        {
+            var key = NormalizeContactPhone(pair.Item2);
+            if (key.Length == 0) continue;
+            if (seenPhones.TryGetValue(key, out var otherLabel))
+            {
+                error = $"{pair.Item1} cannot be the same as {otherLabel}. Phone, Mobile, Fax, and WhatsApp must be unique. Please recorrect the value.";
+                return false;
+            }
+            seenPhones[key] = pair.Item1;
+        }
+
         return true;
     }
 

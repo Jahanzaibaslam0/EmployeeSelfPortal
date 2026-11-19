@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using ClosedXML.Excel;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace HRMS.Services
 {
@@ -21,13 +24,95 @@ namespace HRMS.Services
             using (var stream = new MemoryStream())
             {
                 workbook.SaveAs(stream);
-                return new FileDownload
-                {
-                    Content = stream.ToArray(),
-                    ContentType = ExcelMime,
-                    FileName = $"{filePrefix}_{DateTime.Now:yyyyMMddHHmmss}.xlsx"
-                };
+                return Download(stream.ToArray(), filePrefix);
             }
+        }
+
+        /// <summary>
+        /// Writes a simple .xlsx without ClosedXML (avoids System.Memory 4.0.1.1 on IIS).
+        /// </summary>
+        public static FileDownload ToSimpleFile(
+            string sheetName,
+            IReadOnlyList<string> headers,
+            IList<IReadOnlyList<string>> rows,
+            string filePrefix)
+        {
+            using (var stream = new MemoryStream())
+            {
+                using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook, true))
+                {
+                    var workbookPart = document.AddWorkbookPart();
+                    workbookPart.Workbook = new Workbook();
+                    var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+                    var sheetData = new SheetData();
+                    sheetData.AppendChild(CreateRow(1, headers));
+                    if (rows != null)
+                    {
+                        for (var i = 0; i < rows.Count; i++)
+                            sheetData.AppendChild(CreateRow((uint)(i + 2), rows[i]));
+                    }
+                    worksheetPart.Worksheet = new Worksheet(sheetData);
+                    var sheets = workbookPart.Workbook.AppendChild(new Sheets());
+                    sheets.Append(new Sheet
+                    {
+                        Id = workbookPart.GetIdOfPart(worksheetPart),
+                        SheetId = 1,
+                        Name = TruncateSheetName(sheetName)
+                    });
+                    workbookPart.Workbook.Save();
+                }
+                return Download(stream.ToArray(), filePrefix);
+            }
+        }
+
+        private static FileDownload Download(byte[] content, string filePrefix)
+        {
+            return new FileDownload
+            {
+                Content = content,
+                ContentType = ExcelMime,
+                FileName = $"{filePrefix}_{DateTime.Now:yyyyMMddHHmmss}.xlsx"
+            };
+        }
+
+        private static string TruncateSheetName(string sheetName)
+        {
+            var name = string.IsNullOrWhiteSpace(sheetName) ? "Sheet1" : sheetName.Trim();
+            foreach (var c in new[] { ':', '\\', '/', '?', '*', '[', ']' })
+                name = name.Replace(c, ' ');
+            return name.Length <= 31 ? name : name.Substring(0, 31);
+        }
+
+        private static Row CreateRow(uint rowIndex, IReadOnlyList<string> values)
+        {
+            var row = new Row { RowIndex = rowIndex };
+            if (values == null) return row;
+            for (var i = 0; i < values.Count; i++)
+            {
+                var text = values[i] ?? "";
+                row.AppendChild(new Cell
+                {
+                    CellReference = ColumnName(i + 1) + rowIndex,
+                    DataType = CellValues.InlineString,
+                    InlineString = new InlineString(new Text(text)
+                    {
+                        Space = SpaceProcessingModeValues.Preserve
+                    })
+                });
+            }
+            return row;
+        }
+
+        private static string ColumnName(int index)
+        {
+            var name = "";
+            while (index > 0)
+            {
+                var rem = (index - 1) % 26;
+                name = (char)('A' + rem) + name;
+                index = (index - 1) / 26;
+            }
+            return name;
         }
 
         public static void WriteHeaders(IXLWorksheet sheet, IReadOnlyList<string> headers)

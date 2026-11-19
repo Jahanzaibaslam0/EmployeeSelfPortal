@@ -87,13 +87,43 @@ namespace HRMS.Services
             if (form.Key.Equals(EmployeeProfileAccessService.UserProfileFormKey, StringComparison.OrdinalIgnoreCase))
                 return true;
 
+            if (form.Key.Equals(AccountSecurityService.FormKey, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (form.Key.Equals(ProfileChangeRequestService.FormKey, StringComparison.OrdinalIgnoreCase))
+                return new ProfileChangeRequestService().CanReview();
+
             if (form.Key.Equals(EmployeeProfileAccessService.MyDocumentsFormKey, StringComparison.OrdinalIgnoreCase))
                 return new EmployeeProfileAccessService().CanAccessMyDocuments();
 
             if (form.Key.Equals(LmsDocumentService.LibraryFormKey, StringComparison.OrdinalIgnoreCase))
                 return new LmsDocumentService().CanAccessLibrary();
 
+            if (form.Key.Equals(LeaveApprovalService.FormKey, StringComparison.OrdinalIgnoreCase)
+                || form.Key.Equals(LeaveApprovalService.HrFormKey, StringComparison.OrdinalIgnoreCase))
+                return new LeaveApprovalService().CanAccessModule();
+
+            if (form.Key.Equals("MasterSetup", StringComparison.OrdinalIgnoreCase))
+                return CanAccessMasterSetup();
+
             return CanRead(form.Key);
+        }
+
+        /// <summary>
+        /// Hub is available to admins and anyone who can read at least one setup page.
+        /// </summary>
+        public bool CanAccessMasterSetup()
+        {
+            if (_auth.IsAdmin) return true;
+            if (!_auth.CurrentUserId.HasValue) return false;
+            var perms = GetUserPermissions(_auth.CurrentUserId.Value);
+            if (perms.Any(p => p.FormKey.Equals("MasterSetup", StringComparison.OrdinalIgnoreCase) && p.CanRead))
+                return true;
+            return perms.Any(p =>
+            {
+                var form = AppForms.FindByKey(p.FormKey);
+                return AppForms.IsSetupCatalogForm(form) && p.CanRead;
+            });
         }
 
         /// <summary>Pages not in AppForms that logged-in users may still open.</summary>
@@ -101,9 +131,17 @@ namespace HRMS.Services
         {
             var p = AppForms.NormalizePath(pagePath);
             // Setup hub filters its own tiles by CanRead; allow entry so users can open granted setups.
-            if (p == "/setup") return true;
+            if (p == "/setup" || p == "/mastersetup") return true;
             // Public/bootstrap utilities are gated elsewhere (IsPublicPage / admin checks).
             if (p == "/login" || p == "/resetadmin" || p == "/initdatabase") return true;
+            if (p == "/forgotpassword" || p == "/verify2fa") return true;
+            if (p == "/inbox" || p == "/profilechangeconfirm" || p == "/profilechangehistory") return true;
+            if (p == "/employeedocumentfile" || p == "/galleryimage") return true;
+            if (p == "/mycontacts" || p == "/customercontacts" || p == "/vendorcontacts" || p == "/contactexport") return true;
+            if (p == "/employeecontacts" || p == "/nobusinesslinkcontacts") return true;
+            if (p == "/contactchangereview") return true;
+            if (p == "/myworkspace") return true;
+            if (p == "/productserialbarcode" || p == "/contactqr") return true;
             return false;
         }
 
@@ -119,6 +157,13 @@ namespace HRMS.Services
             if (!IsEmployeeRelatedForm(formKey)) return true;
             if (formKey.Equals(EmployeeProfileAccessService.UserProfileFormKey, StringComparison.OrdinalIgnoreCase))
                 return true;
+
+            // HR / authorized users with explicit form rights may open the page
+            // without being linked to an employee profile (e.g. HR01 on Employee Master).
+            if (CanRead(formKey))
+                return true;
+
+            // Self-service users need a linked employee record.
             return GetLinkedEmployeeId() > 0;
         }
 
@@ -166,6 +211,7 @@ namespace HRMS.Services
             {
                 new { Key = "Home", Read = true, Write = false, Delete = false },
                 new { Key = "UserProfile", Read = true, Write = false, Delete = false },
+                new { Key = AccountSecurityService.FormKey, Read = true, Write = true, Delete = false },
                 new { Key = "MyDocuments", Read = true, Write = false, Delete = false },
                 new { Key = "LmsLibrary", Read = true, Write = false, Delete = false },
                 new { Key = "Dashboard", Read = true, Write = false, Delete = false },

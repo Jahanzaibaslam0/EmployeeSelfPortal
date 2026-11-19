@@ -8,6 +8,7 @@ namespace HRMS.Services
     {
         private readonly string _conn;
         private readonly AuthService _auth = new AuthService();
+        private readonly ProductBatchService _batches = new ProductBatchService();
 
         public InventoryService()
         {
@@ -92,6 +93,30 @@ namespace HRMS.Services
                 purchaseOrderId, purchaseOrderItemId, null, null, goodsReceiptId, null, remarks);
         }
 
+        public void ReceiveStock(
+            SqlConnection conn,
+            SqlTransaction tx,
+            int productId,
+            decimal qty,
+            decimal unitCost,
+            string referenceType,
+            int? purchaseOrderId,
+            int? purchaseOrderItemId,
+            int? goodsReceiptId,
+            string remarks,
+            int productBatchId)
+        {
+            _batches.EnsureSchema();
+            _batches.AssertUsable(conn, tx, productId, productBatchId, issue: false, qty: qty);
+            ReceiveStock(conn, tx, productId, qty, unitCost, referenceType,
+                purchaseOrderId, purchaseOrderItemId, goodsReceiptId, remarks);
+            if (productBatchId > 0)
+            {
+                _batches.ApplyStockDelta(conn, tx, productBatchId, qty);
+                StampLastTransactionBatch(conn, tx, productId, "Receipt", productBatchId);
+            }
+        }
+
         public void IssueStock(
             SqlConnection conn,
             SqlTransaction tx,
@@ -135,6 +160,48 @@ namespace HRMS.Services
 
             LogTransaction(conn, tx, "Issue", productId, -qty, avgCost, referenceType,
                 null, null, salesOrderId, salesOrderItemId, null, goodsIssueId, remarks);
+        }
+
+        public void IssueStock(
+            SqlConnection conn,
+            SqlTransaction tx,
+            int productId,
+            decimal qty,
+            string referenceType,
+            int? salesOrderId,
+            int? salesOrderItemId,
+            int? goodsIssueId,
+            string remarks,
+            int productBatchId)
+        {
+            _batches.EnsureSchema();
+            _batches.AssertUsable(conn, tx, productId, productBatchId, issue: true, qty: qty);
+            IssueStock(conn, tx, productId, qty, referenceType, salesOrderId, salesOrderItemId, goodsIssueId, remarks);
+            if (productBatchId > 0)
+            {
+                _batches.ApplyStockDelta(conn, tx, productBatchId, -qty);
+                StampLastTransactionBatch(conn, tx, productId, "Issue", productBatchId);
+            }
+        }
+
+        private void StampLastTransactionBatch(SqlConnection conn, SqlTransaction tx, int productId, string transactionType, int productBatchId)
+        {
+            using (var cmd = new SqlCommand(@"
+UPDATE t
+SET ProductBatchID = @BatchID
+FROM tblInventoryTransaction t
+WHERE t.InventoryTransactionID = (
+    SELECT TOP 1 InventoryTransactionID
+    FROM tblInventoryTransaction
+    WHERE ProductID=@ProductID AND TransactionType=@Type
+    ORDER BY InventoryTransactionID DESC);", conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@BatchID", productBatchId);
+                cmd.Parameters.AddWithValue("@ProductID", productId);
+                cmd.Parameters.AddWithValue("@Type", transactionType);
+                try { cmd.ExecuteNonQuery(); }
+                catch { /* column added in EnsureSchema; ignore if table missing in isolated tests */ }
+            }
         }
 
         private void LogTransaction(

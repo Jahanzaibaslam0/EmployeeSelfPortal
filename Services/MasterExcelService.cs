@@ -454,7 +454,10 @@ public class MasterExcelService
             FROM tblPositionWorkerAssignment a
             INNER JOIN tblPosition p ON p.PositionID = a.PositionID
             INNER JOIN tblEmployee e ON e.EmployeeID = a.EmployeeID
-            ORDER BY p.PositionNo, a.SortOrder, a.PositionWorkerAssignmentID;", conn))
+            ORDER BY p.PositionNo,
+                     CASE WHEN a.AssignmentEndDate IS NULL THEN 0 ELSE 1 END,
+                     a.AssignmentStartDate DESC,
+                     a.PositionWorkerAssignmentID DESC;", conn))
         using (var dr = cmd.ExecuteReader())
         {
             var row = 2;
@@ -572,13 +575,29 @@ public class MasterExcelService
                     positionId = FindIdByCode(conn, tx, "tblPosition", "PositionID", "PositionNo", group.Key);
                 if (positionId <= 0) continue;
 
-                using (var del = new SqlCommand("DELETE FROM tblPositionWorkerAssignment WHERE PositionID = @PositionID;", conn, tx))
+                // Preserve history; enforce non-overlapping periods per position (same rules as Position Master).
+                var openCountInFile = 0;
+                var sort = 0;
+                var batchPeriods = new List<(DateTime Start, DateTime? End)>();
+
+                // Load existing DB periods for this position.
+                using (var load = new SqlCommand(@"
+                    SELECT AssignmentStartDate, AssignmentEndDate
+                    FROM tblPositionWorkerAssignment
+                    WHERE PositionID = @PositionID AND AssignmentStartDate IS NOT NULL;", conn, tx))
                 {
-                    del.Parameters.AddWithValue("@PositionID", positionId);
-                    del.ExecuteNonQuery();
+                    load.Parameters.AddWithValue("@PositionID", positionId);
+                    using (var dr = load.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            var s = Convert.ToDateTime(dr[0]).Date;
+                            DateTime? e = dr.IsDBNull(1) ? (DateTime?)null : Convert.ToDateTime(dr[1]).Date;
+                            batchPeriods.Add((s, e));
+                        }
+                    }
                 }
 
-                var sort = 0;
                 foreach (var wRow in group)
                 {
                     var empCode = ExcelUtility.CellText(wRow, 2);
@@ -587,6 +606,27 @@ public class MasterExcelService
                     if (empId <= 0)
                         throw new InvalidOperationException($"WorkerAssignments row {wRow.RowNumber()}: Employee '{empCode}' not found.");
 
+                    var startDate = ExcelUtility.ReadDate(wRow, 3);
+                    var endDate = ExcelUtility.ReadDate(wRow, 4);
+                    var reason = NullStr(ExcelUtility.CellText(wRow, 5));
+                    if (!startDate.HasValue)
+                        throw new InvalidOperationException($"WorkerAssignments row {wRow.RowNumber()}: AssignmentStartDate is required.");
+
+                    if (!endDate.HasValue)
+                    {
+                        openCountInFile++;
+                        if (openCountInFile > 1)
+                            throw new InvalidOperationException(
+                                $"WorkerAssignments for '{group.Key}': only one active (open-ended) assignment is allowed per position.");
+                    }
+
+                    foreach (var existing in batchPeriods)
+                    {
+                        if (PositionAssignmentService.PeriodsOverlap(startDate.Value, endDate, existing.Start, existing.End))
+                            throw new InvalidOperationException(
+                                $"WorkerAssignments row {wRow.RowNumber()} ({group.Key}): {PositionAssignmentService.OverlapErrorMessage}");
+                    }
+
                     using var ins = new SqlCommand(@"
                         INSERT INTO tblPositionWorkerAssignment
                             (PositionID, EmployeeID, AssignmentStartDate, AssignmentEndDate, Reason, SortOrder, CreatedOn, CreatedByUserID)
@@ -594,12 +634,14 @@ public class MasterExcelService
                             (@PositionID, @EmployeeID, @StartDate, @EndDate, @Reason, @SortOrder, GETDATE(), @CreatedByUserID);", conn, tx);
                     ins.Parameters.AddWithValue("@PositionID", positionId);
                     ins.Parameters.AddWithValue("@EmployeeID", empId);
-                    ins.Parameters.AddWithValue("@StartDate", (object)ExcelUtility.ReadDate(wRow, 3) ?? DBNull.Value);
-                    ins.Parameters.AddWithValue("@EndDate", (object)ExcelUtility.ReadDate(wRow, 4) ?? DBNull.Value);
-                    ins.Parameters.AddWithValue("@Reason", NullStr(ExcelUtility.CellText(wRow, 5)));
+                    ins.Parameters.AddWithValue("@StartDate", startDate.Value);
+                    ins.Parameters.AddWithValue("@EndDate", (object)endDate ?? DBNull.Value);
+                    ins.Parameters.AddWithValue("@Reason", reason);
                     ins.Parameters.AddWithValue("@SortOrder", ++sort);
                     AuditHelper.AddCreatedBy(ins, userId);
                     ins.ExecuteNonQuery();
+
+                    batchPeriods.Add((startDate.Value, endDate));
                 }
             }
         }

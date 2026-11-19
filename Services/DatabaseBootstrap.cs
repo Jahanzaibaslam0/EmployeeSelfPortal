@@ -189,6 +189,21 @@ public static class DatabaseBootstrap
               ModifiedOn DATETIME NULL
           );",
 
+        @"IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblEmployeeIdentification' AND type = 'U')
+          CREATE TABLE tblEmployeeIdentification (
+              EmployeeIdentificationID INT IDENTITY(1,1) PRIMARY KEY,
+              EmployeeID INT NOT NULL,
+              DocumentType NVARCHAR(50) NOT NULL,
+              RegistrationNo NVARCHAR(100) NOT NULL,
+              IssueDate DATE NULL,
+              ExpiryDate DATE NULL,
+              SortOrder INT NOT NULL DEFAULT 1,
+              CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+              ModifiedOn DATETIME NULL,
+              CreatedByUserID INT NULL,
+              ModifiedByUserID INT NULL
+          );",
+
         @"IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = 'tblEmployeeAddress' AND type = 'U')
           CREATE TABLE tblEmployeeAddress (
               AddressID INT IDENTITY(1,1) PRIMARY KEY,
@@ -354,6 +369,47 @@ public static class DatabaseBootstrap
               Details NVARCHAR(MAX) NULL,
               IpAddress NVARCHAR(50) NULL,
               Success BIT NOT NULL DEFAULT 1
+          );",
+
+        @"IF OBJECT_ID(N'dbo.tblAttendanceMethod', N'U') IS NULL
+          CREATE TABLE dbo.tblAttendanceMethod (
+              AttendanceMethodID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+              AttendanceMethodName NVARCHAR(100) NOT NULL UNIQUE,
+              AliasName NVARCHAR(50) NULL,
+              IsActive BIT NOT NULL DEFAULT 1,
+              CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+              ModifiedOn DATETIME NULL,
+              CreatedByUserID INT NULL,
+              ModifiedByUserID INT NULL
+          );",
+
+        @"IF OBJECT_ID(N'dbo.tblEmployeeCategory', N'U') IS NULL
+          CREATE TABLE dbo.tblEmployeeCategory (
+              EmployeeCategoryID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+              EmployeeCategoryName NVARCHAR(150) NOT NULL,
+              AliasName NVARCHAR(50) NULL,
+              IsActive BIT NOT NULL DEFAULT 1,
+              CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+              ModifiedOn DATETIME NULL,
+              CreatedByUserID INT NULL,
+              ModifiedByUserID INT NULL
+          );",
+
+        @"IF OBJECT_ID(N'dbo.tblDesignation', N'U') IS NULL
+          CREATE TABLE dbo.tblDesignation (
+              DesignationID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+              TitleID INT NOT NULL,
+              GradeID INT NOT NULL,
+              EmployeeCategoryID INT NOT NULL,
+              ProbationDays INT NULL,
+              PrivilegeCode NVARCHAR(30) NOT NULL DEFAULT N'NONE',
+              PrivilegeTier NVARCHAR(30) NOT NULL DEFAULT N'None',
+              PositionTenure NVARCHAR(30) NULL,
+              IsActive BIT NOT NULL DEFAULT 1,
+              CreatedOn DATETIME NOT NULL DEFAULT GETDATE(),
+              ModifiedOn DATETIME NULL,
+              CreatedByUserID INT NULL,
+              ModifiedByUserID INT NULL
           );",
     };
 }
