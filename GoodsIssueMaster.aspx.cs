@@ -33,6 +33,9 @@ namespace HRMS
         public string AlreadyIssued { get; set; } = "";
         public string StockOnHand { get; set; } = "";
         public string IssueQty { get; set; } = "";
+        public int ProductBatchID { get; set; }
+        public bool RequiresBatch { get; set; }
+        public List<ProductBatchOption> Batches { get; set; } = new List<ProductBatchOption>();
     }
 
     public class SoLineForIssue
@@ -50,6 +53,7 @@ namespace HRMS
     public partial class GoodsIssueMasterPage : AppBasePage
     {
         private readonly InventoryService _inventory = new InventoryService();
+        private readonly ProductBatchService _batches = new ProductBatchService();
 
         public string PageTitle => "Goods Issue";
         public List<GoodsIssueListItem> Issues { get; set; } = new List<GoodsIssueListItem>();
@@ -195,7 +199,7 @@ UPDATE tblSalesOrderItem SET IssuedQty = IssuedQty + @Qty WHERE SalesOrderItemID
                             }
 
                             _inventory.IssueStock(conn, tx, line.ProductID, issueQty, "GIN",
-                                SelectedSoId, soItemId, giId, "GI " + giCode);
+                                SelectedSoId, soItemId, giId, "GI " + giCode, line.ProductBatchID);
                         }
 
                         UpdateSoStatusIfComplete(conn, tx, SelectedSoId);
@@ -338,6 +342,7 @@ ORDER BY so.SalesOrderID DESC;", conn))
             Lines.Clear();
             foreach (var line in FetchSoLines(soId))
             {
+                var batchOpts = _batches.ListOptionsForProduct(line.ProductID, issue: true);
                 Lines.Add(new IssueLineInput
                 {
                     SalesOrderItemID = line.SalesOrderItemID,
@@ -347,7 +352,9 @@ ORDER BY so.SalesOrderID DESC;", conn))
                     OrderedQty = line.OrderedQty.ToString("0.####"),
                     AlreadyIssued = line.IssuedQty.ToString("0.####"),
                     StockOnHand = line.StockOnHand.ToString("0.####"),
-                    IssueQty = line.PendingQty.ToString("0.####")
+                    IssueQty = line.PendingQty.ToString("0.####"),
+                    RequiresBatch = batchOpts.Count > 0,
+                    Batches = batchOpts
                 });
             }
             CustomerName = GetCustomerName(soId) ?? "";

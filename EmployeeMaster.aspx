@@ -15,6 +15,14 @@
 #certificateTable input[type="file"],#documentTable input[type="file"]{font-size:.75rem;max-width:130px;}
 .excel-import-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.75rem;}
 .excel-file-group{margin:0;min-width:240px;flex:1;}
+.emp-complete-cell{min-width:110px;}
+.emp-complete-mini{display:flex;flex-direction:column;gap:4px;min-width:92px;}
+.emp-complete-mini span{font-size:.78rem;font-weight:700;}
+.emp-complete-mini .track{height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;}
+.emp-complete-mini .fill{height:100%;border-radius:99px;background:#e31e24;}
+.emp-complete-mini.is-mid .fill{background:#d97706;}
+.emp-complete-mini.is-good .fill{background:#2563eb;}
+.emp-complete-mini.is-complete .fill{background:#15803d;}
 </style>
 </asp:Content>
 
@@ -51,7 +59,7 @@
     <div class="card-header emp-list-header">
         <h2>Employee List</h2>
         <div class="right-controls">
-            <input type="text" id="txtSearch" class="form-control" style="width:220px" placeholder="Search name / code / dept…" onkeyup="searchTable(this.value)" />
+            <input type="text" id="txtSearch" class="form-control" style="width:220px" placeholder="Search name / code / dept&hellip;" onkeyup="searchTable(this.value)" />
             <% if (HasFullEmployeeAccess) { %>
             <a href="/EmployeeMaster.aspx?newEmployee=1" class="btn btn-primary">+ New Employee</a>
             <% } %>
@@ -63,12 +71,12 @@
                 <tr>
                     <th>#</th><th>Emp Code</th><th>Full Name</th><th>Legal Entity</th><th>Department</th>
                     <th>Employment Type</th><th>Employment Status</th><th>Designation</th>
-                    <th>Mobile</th><th>Email</th><th>Joined</th><th>Status</th><th>Actions</th>
+                    <th>Mobile</th><th>Email</th><th>Joined</th><th>Status</th><th>Profile %</th><th>Actions</th>
                 </tr>
             </thead>
             <tbody>
             <% if (Employees.Count == 0) { %>
-                <tr><td colspan="13" class="empty-cell" style="text-align:center;padding:2rem;color:#6b7280;">
+                <tr><td colspan="14" class="empty-cell" style="text-align:center;padding:2rem;color:#6b7280;">
                     No employees found.
                     <% if (HasFullEmployeeAccess) { %><br /><a href="/EmployeeMaster.aspx?newEmployee=1" class="btn btn-primary" style="margin-top:.75rem;">+ Add First Employee</a><% } %>
                 </td></tr>
@@ -90,6 +98,12 @@
                     <td><%= Server.HtmlEncode(emp.Email) %></td>
                     <td><%= emp.DateOfJoining.HasValue ? emp.DateOfJoining.Value.ToString("dd MMM yyyy") : "" %></td>
                     <td><span class="badge <%= emp.Status == "Active" ? "badge-success" : "badge-danger" %>"><%= Server.HtmlEncode(emp.Status) %></span></td>
+                    <td class="emp-complete-cell">
+                        <div class="emp-complete-mini <%= emp.CompletionTone %>" title="Employee profile completion">
+                            <span><%= Server.HtmlEncode(emp.CompletionDisplay) %></span>
+                            <div class="track"><div class="fill" style="width:<%= emp.CompletionPercent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) %>%;"></div></div>
+                        </div>
+                    </td>
                     <td class="actions-col" style="white-space:nowrap;">
                         <a href="/EmployeeCard.aspx?id=<%= emp.EmployeeID %>" class="btn btn-secondary" style="padding:3px 12px;font-size:.8rem;" title="View ID Card">Card</a>
                         <a href="/EmployeeMaster.aspx?editId=<%= emp.EmployeeID %>" class="btn btn-secondary" style="padding:3px 12px;font-size:.8rem;"><%= HasFullEmployeeAccess ? "Edit" : "View" %></a>
@@ -120,14 +134,40 @@
 </div>
 
 <div class="card">
-    <div class="card-header">
+    <div class="card-header emp-profile-score-header">
         <h2><%= IsProfileOnlyMode ? "My Profile" : (EditMode ? "Edit Employee Details" : "Add New Employee") %></h2>
+        <div class="emp-profile-score <%= ProfileScore.ToneClass %>">
+            <div class="emp-profile-score__top">
+                <span class="emp-profile-score__label">Profile completion</span>
+                <strong class="emp-profile-score__pct"><%= Server.HtmlEncode(ProfileScore.PercentDisplay) %></strong>
+            </div>
+            <div class="emp-profile-score__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= ProfileScore.BarWidth %>" aria-label="Employee profile completion">
+                <div class="emp-profile-score__fill" style="width:<%= ProfileScore.BarWidth %>%;"></div>
+            </div>
+            <div class="emp-profile-score__cats">
+                <% foreach (var cat in ProfileScore.Categories) { %>
+                <div class="emp-profile-score__cat">
+                    <span><%= Server.HtmlEncode(cat.Name) %></span>
+                    <strong><%= cat.Score.ToString("0.#") %>%</strong>
+                    <em><%= Server.HtmlEncode(cat.Detail) %></em>
+                </div>
+                <% } %>
+            </div>
+        </div>
     </div>
     <% if (IsProfileOnlyMode) { %>
     <div class="card-body" style="padding-bottom:0;">
         <div class="alert alert-info" style="margin:0;">
-            You are viewing your own employee profile. Personal and contact details can be updated; employment and organization fields are managed by HR.
+            You are viewing the <strong>approved</strong> official profile. Personal, contact, address, and CNIC changes are sent to an HR Manager for approval and do not replace these values until approved.
+            <a href="/ProfileChangeHistory.aspx">View my requests</a>
         </div>
+        <% if (PendingProfileRequest != null) { %>
+        <div class="alert alert-warning" style="margin:.75rem 0 0;">
+            Request <%= Server.HtmlEncode(PendingProfileRequest.RequestCode) %> is <strong>pending HR approval</strong> (submitted <%= PendingProfileRequest.SubmittedOn.ToString("dd-MMM-yyyy HH:mm") %>).
+            You cannot submit another change until HR reviews it.
+            <a href="/ProfileChangeHistory.aspx?id=<%= PendingProfileRequest.RequestID %>">View request</a>
+        </div>
+        <% } %>
     </div>
     <% } %>
 
@@ -142,6 +182,7 @@
         <input type="hidden" name="EducationJson" id="EducationJson" />
         <input type="hidden" name="CertificatesJson" id="CertificatesJson" />
         <input type="hidden" name="DocumentsJson" id="DocumentsJson" />
+        <input type="hidden" name="IdentificationsJson" id="IdentificationsJson" />
 
         <div class="form-grid">
             <div class="form-group full-width"><h3 class="form-section-title">Primary Identifier</h3></div>
@@ -179,6 +220,11 @@
                 <input type="text" name="EmployeeCode" id="txtEmpCode" class="form-control" value="<%= Server.HtmlEncode(Input.EmployeeCode) %>" maxlength="20" />
             </div>
             <div class="form-group">
+                <label>Biometric ID</label>
+                <input type="number" name="BiometricID" id="txtBiometricID" class="form-control"
+                       value="<%= Server.HtmlEncode(Input.BiometricID) %>" min="0" step="1" />
+            </div>
+            <div class="form-group">
                 <label>Employee Status <span class="required">*</span></label>
                 <select name="Status" id="ddlStatus" class="form-control">
                     <option value="Active" <%= Input.Status == "Active" ? "selected" : "" %>>Active</option>
@@ -203,7 +249,16 @@
             </div>
             <div class="form-group">
                 <label>National ID Number</label>
-                <input type="text" name="NationalIDNumber" id="txtNationalID" class="form-control" value="<%= Server.HtmlEncode(Input.NationalIDNumber) %>" maxlength="50" />
+                <input type="text" name="NationalIDNumber" id="txtNationalID" class="form-control"
+                       value="<%= Server.HtmlEncode(Input.NationalIDNumber) %>"
+                       maxlength="15"
+                       placeholder="42101-1234567-8"
+                       pattern="[0-9]{5}-[0-9]{7}-[0-9]"
+                       title="Format: 42101-1234567-8"
+                       data-validate="nationalid"
+                       data-label="National ID Number"
+                       autocomplete="off" />
+                <span class="field-error" id="errNationalID"></span>
             </div>
             <div class="form-group">
                 <label>Date of Birth</label>
@@ -222,16 +277,6 @@
                     <% } %>
                 </select>
             </div>
-            <div class="form-group">
-                <label>Language</label>
-                <select name="LanguageID" id="ddlLanguage" class="form-control">
-                    <option value="">-- Select --</option>
-                    <% foreach (var item in Languages) { %>
-                    <option value="<%= item.Id %>" <%= Input.LanguageID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
-                    <% } %>
-                </select>
-            </div>
-
             <div class="form-group full-width"><h3 class="form-section-title">Demographic Information</h3></div>
             <div class="form-group">
                 <label>Nationality</label>
@@ -244,7 +289,18 @@
             </div>
             <div class="form-group">
                 <label>Domicile</label>
-                <input type="text" name="Domicile" id="txtDomicile" class="form-control" value="<%= Server.HtmlEncode(Input.Domicile) %>" maxlength="150" />
+                <select name="Domicile" id="ddlDomicile" class="form-control">
+                    <option value="">-- Select --</option>
+                    <% var domicileMatched = false;
+                       foreach (var item in DomicileOptions) {
+                           var selected = string.Equals(Input.Domicile, item, StringComparison.OrdinalIgnoreCase);
+                           if (selected) domicileMatched = true; %>
+                    <option value="<%= Server.HtmlEncode(item) %>" <%= selected ? "selected" : "" %>><%= Server.HtmlEncode(item) %></option>
+                    <% }
+                       if (!domicileMatched && !string.IsNullOrWhiteSpace(Input.Domicile)) { %>
+                    <option value="<%= Server.HtmlEncode(Input.Domicile) %>" selected><%= Server.HtmlEncode(Input.Domicile) %></option>
+                    <% } %>
+                </select>
             </div>
             <div class="form-group">
                 <label>Religion</label>
@@ -313,7 +369,13 @@
             </div>
             <div class="form-group">
                 <label>Designation <span class="required">*</span></label>
-                <input type="text" name="Designation" id="txtDesignation" class="form-control" value="<%= Server.HtmlEncode(Input.Designation) %>" maxlength="100" />
+                <select name="DesignationID" id="ddlDesignation" class="form-control" onchange="applyDesignationLookup();">
+                    <option value="">-- Select Designation --</option>
+                    <% foreach (var item in Designations) { %>
+                    <option value="<%= item.Id %>" <%= Input.DesignationID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
+                    <% } %>
+                </select>
+                <span class="field-error" id="errDesignation"></span>
             </div>
             <div class="form-group">
                 <label>Section / Team</label>
@@ -343,20 +405,29 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Worker Location</label>
-                <select name="WorkerLocationID" id="ddlWorkerLocation" class="form-control">
-                    <option value="">-- Select --</option>
-                    <% foreach (var item in WorkerLocations) { %>
-                    <option value="<%= item.Id %>" <%= Input.WorkerLocationID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
-                    <% } %>
-                </select>
-            </div>
-            <div class="form-group">
                 <label>Location</label>
                 <select name="LocationID" id="ddlLocation" class="form-control">
                     <option value="">-- Select --</option>
                     <% foreach (var item in Locations) { %>
                     <option value="<%= item.Id %>" <%= Input.LocationID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
+                    <% } %>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Deal for Branch</label>
+                <select name="DealForBranchID" id="ddlDealForBranch" class="form-control">
+                    <option value="">-- Select --</option>
+                    <% foreach (var item in Locations) { %>
+                    <option value="<%= item.Id %>" <%= Input.DealForBranchID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
+                    <% } %>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Secondary Location</label>
+                <select name="SecondaryLocationID" id="ddlSecondaryLocation" class="form-control">
+                    <option value="">-- Select --</option>
+                    <% foreach (var item in Locations) { %>
+                    <option value="<%= item.Id %>" <%= Input.SecondaryLocationID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
                     <% } %>
                 </select>
             </div>
@@ -397,6 +468,13 @@
                 </select>
             </div>
             <div class="form-group">
+                <label>Position ID</label>
+                <input type="text" id="txtPositionNo" class="form-control" readonly
+                       value="<%= Server.HtmlEncode(AssignedPositionNo) %>"
+                       placeholder="" style="background:#f9fafb;" />
+                <small style="color:#6b7280;font-size:.78rem;">Shown when the employee is currently assigned to a position (no end date, or end date is today or later)</small>
+            </div>
+            <div class="form-group">
                 <label>City</label>
                 <select name="CityID" id="ddlCity" class="form-control">
                     <option value="">-- Select --</option>
@@ -415,15 +493,6 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Sales Group</label>
-                <select name="SalesGroupID" id="ddlSalesGroup" class="form-control">
-                    <option value="">-- Select --</option>
-                    <% foreach (var item in SalesGroups) { %>
-                    <option value="<%= item.Id %>" <%= Input.SalesGroupID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
-                    <% } %>
-                </select>
-            </div>
-            <div class="form-group">
                 <label>Grade</label>
                 <select name="GradeID" id="ddlGrade" class="form-control">
                     <option value="">-- Select --</option>
@@ -433,8 +502,24 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Basic Salary <span class="required">*</span></label>
+                <label>Privilege Tier</label>
+                <select name="PrivilegeTier" id="ddlPrivilegeTier" class="form-control">
+                    <option value="">-- Select --</option>
+                    <% foreach (var tier in PrivilegeTierOptions) { %>
+                    <option value="<%= Server.HtmlEncode(tier) %>" <%= string.Equals(Input.PrivilegeTier, tier, StringComparison.OrdinalIgnoreCase) ? "selected" : "" %>><%= Server.HtmlEncode(tier) %></option>
+                    <% } %>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Gross Salary <span class="required">*</span></label>
                 <input type="number" name="BasicSalary" id="txtSalary" class="form-control" value="<%= Server.HtmlEncode(Input.BasicSalary) %>" min="0" step="0.01" />
+                <span class="field-error" id="errSalary"></span>
+            </div>
+            <div class="form-group">
+                <label>Convenience Allowance</label>
+                <input type="number" name="ConvenienceAllowance" id="txtConvenienceAllowance" class="form-control"
+                       value="<%= Server.HtmlEncode(Input.ConvenienceAllowance) %>" min="0" step="0.01" placeholder="0.00" />
+                <span class="field-error" id="errConvenienceAllowance"></span>
             </div>
 
             <div class="form-group full-width"><h3 class="form-section-title">Additional Employment</h3></div>
@@ -483,15 +568,29 @@
                     <% } %>
                 </select>
             </div>
+            <div class="form-group">
+                <label>Work Agreement</label>
+                <select name="WorkArrangementID" id="ddlWorkArrangement" class="form-control">
+                    <option value="">-- Select --</option>
+                    <% foreach (var item in WorkArrangements) { %>
+                    <option value="<%= item.Id %>" <%= Input.WorkArrangementID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
+                    <% } %>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Attendance Method</label>
+                <select name="AttendanceMethodID" id="ddlAttendanceMethod" class="form-control">
+                    <option value="">-- Select --</option>
+                    <% foreach (var item in AttendanceMethods) { %>
+                    <option value="<%= item.Id %>" <%= Input.AttendanceMethodID == item.Id ? "selected" : "" %>><%= Server.HtmlEncode(item.Name) %></option>
+                    <% } %>
+                </select>
+            </div>
 
             <div class="form-group full-width"><h3 class="form-section-title">Worker Joining &amp; Tenure</h3></div>
             <div class="form-group">
                 <label>Joining Date <span class="required">*</span></label>
                 <input type="date" name="DateOfJoining" id="txtDOJ" class="form-control" value="<%= Input.DateOfJoining %>" onchange="updateTenureFields(); updateProbationEnd();" />
-            </div>
-            <div class="form-group">
-                <label>Employment Start Date</label>
-                <input type="date" name="EmploymentStartDate" id="txtEmploymentStart" class="form-control" value="<%= Input.EmploymentStartDate %>" onchange="updateTenureFields(); updateProbationEnd();" />
             </div>
             <div class="form-group">
                 <label>Probation Period (Days)</label>
@@ -500,7 +599,7 @@
             <div class="form-group">
                 <label>Probation End Date</label>
                 <input type="date" name="ProbationEndDate" id="txtProbationEnd" class="form-control" value="<%= Input.ProbationEndDate %>" />
-                <small style="color:#6b7280;font-size:.78rem;">Auto-calculated from start date + probation days</small>
+                <small style="color:#6b7280;font-size:.78rem;">Auto-calculated from joining date + probation days</small>
             </div>
             <div class="form-group">
                 <label>Confirmation Date</label>
@@ -531,6 +630,7 @@
                     <div class="profile-tab-buttons">
                         <button type="button" class="profile-tab-btn active" data-tab-target="contactTab" onclick="switchProfileTab('contactTab', this)">Employee Contact</button>
                         <button type="button" class="profile-tab-btn" data-tab-target="addressTab" onclick="switchProfileTab('addressTab', this)">Address</button>
+                        <button type="button" class="profile-tab-btn" data-tab-target="identificationTab" onclick="switchProfileTab('identificationTab', this)">Identification</button>
                         <button type="button" class="profile-tab-btn" data-tab-target="familyTab" onclick="switchProfileTab('familyTab', this)">Family Member</button>
                         <button type="button" class="profile-tab-btn" data-tab-target="educationTab" onclick="switchProfileTab('educationTab', this)">Education</button>
                         <button type="button" class="profile-tab-btn" data-tab-target="certificateTab" onclick="switchProfileTab('certificateTab', this)">Certificate</button>
@@ -563,6 +663,20 @@
                                 </div>
                                 <div class="card-body table-responsive">
                                     <table class="data-table" id="addressTable"><thead class="grid-header"><tr><th>Type</th><th>Address</th><th>City</th><th>Province/State</th><th>Postal Code</th><th>Primary</th><th>Action</th></tr></thead><tbody></tbody></table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-tab-panel" id="identificationTab">
+                            <div class="card">
+                                <div class="card-header space-between">
+                                    <h2>Employee Identification (Multiple)</h2>
+                                    <div>
+                                        <button type="button" class="btn btn-secondary" onclick="addIdentificationRow()">Add Identification</button>
+                                        <button type="button" class="btn btn-primary" onclick="submitProfileSection('identifications')">Save Identification</button>
+                                    </div>
+                                </div>
+                                <div class="card-body table-responsive">
+                                    <table class="data-table" id="identificationTable"><thead class="grid-header"><tr><th>Document Type</th><th>Registration No.</th><th>Issue Date</th><th>Expiry Date</th><th>Blacklist Comment</th><th>Action</th></tr></thead><tbody></tbody></table>
                                 </div>
                             </div>
                         </div>
@@ -618,6 +732,7 @@
                                     </div>
                                 </div>
                                 <div class="card-body table-responsive">
+                                    <p style="color:#6b7280;margin:0 0 1rem 0;">Files are stored as \\AIBG.com\erpdocs\Employee Document\{EmployeeCode}\{DocumentType}.pdf (example EMP000001). If that employee-code folder is missing, it is created before upload.</p>
                                     <table class="data-table" id="documentTable"><thead class="grid-header"><tr><th>Document Type</th><th>Document No</th><th>Issue Date</th><th>Expiry Date</th><th>Remarks</th><th>Upload / View</th><th>Verified</th><th>Action</th></tr></thead><tbody></tbody></table>
                                 </div>
                             </div>
@@ -645,7 +760,7 @@
     <div class="card-footer" style="display:flex;gap:.75rem;align-items:center;">
         <% if (CanEditCurrentRecord) { %>
         <button type="submit" class="btn btn-primary" onclick="return prepareAndSaveEmployee();">
-            <%= IsProfileOnlyMode ? "Update My Profile" : (EditMode ? "Update Employee" : "Save Employee") %>
+            <%= IsProfileOnlyMode ? "Submit changes for HR approval" : (EditMode ? "Update Employee" : "Save Employee") %>
         </button>
         <% } %>
         <% if (HasFullEmployeeAccess) { %>
@@ -660,6 +775,7 @@
 <% if (ShowForm) { %>
 <script id="initialContactsData" type="application/json"><%= ContactsJsonInit %></script>
 <script id="initialAddressesData" type="application/json"><%= AddressesJsonInit %></script>
+<script id="initialIdentificationsData" type="application/json"><%= IdentificationsJsonInit %></script>
 <script id="initialFamilyData" type="application/json"><%= FamilyJsonInit %></script>
 <script id="initialEducationData" type="application/json"><%= EducationJsonInit %></script>
 <script id="initialCertificatesData" type="application/json"><%= CertificatesJsonInit %></script>
@@ -669,8 +785,9 @@
 <script id="currencyLookupData" type="application/json"><%= CurrenciesLookupJson %></script>
 <script id="bankGroupLookupData" type="application/json"><%= BankGroupsLookupJson %></script>
 <script id="documentTypeLookupData" type="application/json"><%= DocumentTypesLookupJson %></script>
-<script src="<%= ResolveUrl("~/js/field-validation.js") %>?v=1"></script>
-<!-- app.js is loaded once from Site.Master (do not include again — duplicate loads re-seeded contact rows) -->
+<script id="designationLookupData" type="application/json"><%= DesignationsLookupJson %></script>
+<script src="<%= ResolveUrl("~/js/field-validation.js") %>?v=3"></script>
+<!-- app.js is loaded once from Site.Master (do not include again &mdash; duplicate loads re-seeded contact rows) -->
 <script>
 function formatTenureFromDate(dateStr) {
     if (!dateStr) return '';
@@ -705,16 +822,34 @@ function updateAgeField() {
 }
 function updateTenureFields() {
     var joining = (document.getElementById('txtDOJ') && document.getElementById('txtDOJ').value) || '';
-    var employmentStart = (document.getElementById('txtEmploymentStart') && document.getElementById('txtEmploymentStart').value) || '';
     var totalEl = document.getElementById('txtTotalTenure');
     var roleEl = document.getElementById('txtCurrentRoleTenure');
     if (totalEl) totalEl.value = formatTenureFromDate(joining);
-    if (roleEl) roleEl.value = formatTenureFromDate(employmentStart || joining);
+    if (roleEl) roleEl.value = formatTenureFromDate(joining);
+}
+function applyDesignationLookup() {
+    var ddl = document.getElementById('ddlDesignation');
+    var dataEl = document.getElementById('designationLookupData');
+    if (!ddl || !dataEl) return;
+    var items = [];
+    try { items = JSON.parse(dataEl.textContent || '[]'); } catch (e) { items = []; }
+    var id = parseInt(ddl.value, 10);
+    var item = null;
+    for (var i = 0; i < items.length; i++) {
+        if (parseInt(items[i].Id, 10) === id) { item = items[i]; break; }
+    }
+    if (!item) return;
+    var grade = document.getElementById('ddlGrade');
+    var tier = document.getElementById('ddlPrivilegeTier');
+    var days = document.getElementById('txtProbationDays');
+    if (grade) grade.value = item.GradeID ? String(item.GradeID) : '';
+    if (tier) tier.value = item.PrivilegeTier || '';
+    if (days) days.value = item.ProbationDays || '';
+    if (typeof updateProbationEnd === 'function') updateProbationEnd();
 }
 function updateProbationEnd() {
-    var startEl = document.getElementById('txtEmploymentStart');
     var dojEl = document.getElementById('txtDOJ');
-    var start = (startEl && startEl.value) || (dojEl && dojEl.value);
+    var start = dojEl && dojEl.value;
     var daysVal = document.getElementById('txtProbationDays') && document.getElementById('txtProbationDays').value;
     var endEl = document.getElementById('txtProbationEnd');
     if (!start || !daysVal || !endEl) return;
@@ -736,13 +871,13 @@ updateTenureFields();
 <% if (IsProfileOnlyMode) { %>
 (function lockProfileHrFields() {
     var hrFields = [
-        'EmployeeCode','Status','LegalEntityID','BusinessUnitID','DivisionID','DepartmentID',
-        'WorkforceSegmentID','SalesTeamID','CostCenterID','RegionID','LocationID','JobID',
-        'WorkerLocationID','CityID','ProvinceID','SalesGroupID','GradeID','ExtensionID',
+        'EmployeeCode','BiometricID','Status','LegalEntityID','BusinessUnitID','DivisionID','DepartmentID',
+        'WorkforceSegmentID','WorkArrangementID','AttendanceMethodID','SalesTeamID','CostCenterID','RegionID','LocationID','DealForBranchID','SecondaryLocationID','JobID',
+        'CityID','ProvinceID','GradeID','DesignationID','PrivilegeTier','ExtensionID',
         'WorkerCategoryID','EmploymentTypeID','EmploymentStatusID','BenefitEntitlementID',
         'UserID','TemporaryResponsibleEmployeeID','PermanentResponsibleEmployeeID',
-        'Designation','DateOfJoining','EmploymentStartDate','ProbationPeriodDays',
-        'ProbationEndDate','ConfirmationDate','BasicSalary'
+        'DateOfJoining','ProbationPeriodDays',
+        'ProbationEndDate','ConfirmationDate','BasicSalary','ConvenienceAllowance'
     ];
     hrFields.forEach(function(name) {
         document.querySelectorAll('[name="' + name + '"]').forEach(function(el) {

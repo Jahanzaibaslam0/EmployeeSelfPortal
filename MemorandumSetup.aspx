@@ -100,7 +100,7 @@
             <% if (!string.IsNullOrWhiteSpace(item.DocumentPath)) { %>
               <a href="<%= Server.HtmlEncode(item.DocumentPath) %>" target="_blank" rel="noopener noreferrer">View</a>
             <% } else { %>
-              <span class="audit-meta">—</span>
+              <span class="audit-meta">&mdash;</span>
             <% } %>
           </td>
           <td>

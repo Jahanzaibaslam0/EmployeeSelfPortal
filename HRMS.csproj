@@ -12,6 +12,7 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <UseIISExpress>true</UseIISExpress>
     <LangVersion>latest</LangVersion>
+    <CodePage>65001</CodePage>
     <Use64BitIISExpress />
     <IISExpressSSLPort />
     <IISExpressAnonymousAuthentication />
@@ -34,6 +35,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="netstandard" />
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
@@ -43,6 +45,7 @@
     <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
+    <Reference Include="WindowsBase" />
     <Reference Include="ClosedXML">
       <HintPath>packages\ClosedXML.0.102.2\lib\netstandard2.0\ClosedXML.dll</HintPath>
       <Private>True</Private>
@@ -97,6 +100,9 @@
     <Compile Include="AppBase\LanguageSetupPage.cs" />
     <Compile Include="AppBase\ExtensionSetupPage.cs" />
     <Compile Include="AppBase\JobSetupPage.cs" />
+    <Compile Include="AppBase\DesignationSetupPage.cs" />
+    <Compile Include="AppBase\ImageGallerySetupPage.cs" />
+    <Compile Include="AppBase\SoftwareLinkSetupPage.cs" />
     <Compile Include="AppBase\WorkerLocationSetupPage.cs" />
     <Compile Include="AppBase\SalesTeamSetupPage.cs" />
     <Compile Include="AppBase\TrainingMasterPage.cs" />
@@ -105,6 +111,18 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="AppBase\LmsLibraryPage.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AppBase\EmployeeAttendancePage.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AppBase\EmployeeRequestPage.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AppBase\EmployeeDisciplinePage.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AppBase\EmployeeReportPage.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="AppBase\MemorandumSetupPage.cs" />
@@ -129,8 +147,76 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="AppBase\WebFormsJson.cs" />
-    <Compile Include="Services\*.cs" />
+    <Compile Include="Services\AppForms.cs" />
+    <Compile Include="Services\WorkstationNav.cs" />
+    <Compile Include="Services\AttendanceService.cs" />
+    <Compile Include="Services\AuditHelper.cs" />
+    <Compile Include="Services\AuditService.cs" />
+    <Compile Include="Services\AuthService.cs" />
+    <Compile Include="Services\AccountSecurityService.cs" />
+    <Compile Include="Services\ProfileChangeRequestService.cs" />
+    <Compile Include="Services\AppInboxService.cs" />
+    <Compile Include="Services\TotpHelper.cs" />
+    <Compile Include="Services\ContactAddressService.cs" />
+    <Compile Include="Services\DashboardService.cs" />
+    <Compile Include="Services\DatabaseBootstrap.cs" />
+    <Compile Include="Services\DataAccessScopeService.cs" />
+    <Compile Include="Services\DbSchemaHelper.cs" />
+    <Compile Include="Services\DisciplineService.cs" />
+    <Compile Include="Services\EmployeeDocumentStorage.cs" />
+    <Compile Include="Services\EmployeeProfileAccessService.cs" />
+    <Compile Include="Services\EmployeeProfileCompletionService.cs" />
+    <Compile Include="Services\MasterProfileCompletionService.cs" />
+    <Compile Include="Services\EmployeeRequestService.cs" />
+    <Compile Include="Services\ExcelImportResult.cs" />
+    <Compile Include="Services\ExcelUtility.cs" />
+    <Compile Include="Services\InputValidators.cs" />
+    <Compile Include="Services\InventoryService.cs" />
+    <Compile Include="Services\LmsDocumentService.cs" />
+    <Compile Include="Services\LeaveApprovalService.cs" />
+    <Compile Include="Services\MasterExcelService.cs" />
+    <Compile Include="Services\MemorandumService.cs" />
+    <Compile Include="Services\MyWorkspaceService.cs" />
+    <Compile Include="Services\NotificationService.cs" />
+    <Compile Include="Services\PasswordHelper.cs" />
+    <Compile Include="Services\ProductBatchService.cs" />
+    <Compile Include="Services\ProductSerializationService.cs" />
+    <Compile Include="Services\Gs1DataMatrix.cs" />
+    <Compile Include="Services\PermissionService.cs" />
+    <Compile Include="Services\PositionAssignmentService.cs" />
     <Compile Include="Controls\*.ascx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Inbox.aspx.cs">
+      <DependentUpon>Inbox.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ProfileChangeConfirm.aspx.cs">
+      <DependentUpon>ProfileChangeConfirm.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ProfileChangeHistory.aspx.cs">
+      <DependentUpon>ProfileChangeHistory.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ProfileChangeReview.aspx.cs">
+      <DependentUpon>ProfileChangeReview.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AccountSettings.aspx.cs">
+      <DependentUpon>AccountSettings.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ForgotPassword.aspx.cs">
+      <DependentUpon>ForgotPassword.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Verify2FA.aspx.cs">
+      <DependentUpon>Verify2FA.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AttendanceMethodSetup.aspx.cs">
+      <DependentUpon>AttendanceMethodSetup.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="BankGroupSetup.aspx.cs">
@@ -157,13 +243,57 @@
     <Compile Include="BusinessUnitSetup.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="ContactCitySetup.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="CitySetup.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ContactLocationSetup.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="ContactMaster.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="MyContacts.aspx.cs">
+      <DependentUpon>MyContacts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerContacts.aspx.cs">
+      <DependentUpon>CustomerContacts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="VendorContacts.aspx.cs">
+      <DependentUpon>VendorContacts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="EmployeeContacts.aspx.cs">
+      <DependentUpon>EmployeeContacts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="NoBusinessLinkContacts.aspx.cs">
+      <DependentUpon>NoBusinessLinkContacts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ContactExport.aspx.cs">
+      <DependentUpon>ContactExport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ContactQr.aspx.cs">
+      <DependentUpon>ContactQr.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Services\QrCodeEncoder.cs" />
+    <Compile Include="Services\ContactHubService.cs" />
+    <Compile Include="Services\ContactChangeWorkflowService.cs" />
+    <Compile Include="ContactChangeReview.aspx.cs">
+      <DependentUpon>ContactChangeReview.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="CostCenterSetup.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CountrySetup.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="CurrencySetup.aspx.cs">
@@ -197,6 +327,13 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="EmployeeCard.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="EmployeeDocumentFile.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="GalleryImage.aspx.cs">
+      <DependentUpon>GalleryImage.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="EmployeeMaster.aspx.cs">
@@ -275,6 +412,10 @@
       <DependentUpon>MyDocuments.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="MyWorkspace.aspx.cs">
+      <DependentUpon>MyWorkspace.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="NationalitySetup.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
@@ -290,6 +431,9 @@
     <Compile Include="PositionMaster.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="PostalSetup.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="ProductDivisionSetup.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
@@ -297,6 +441,18 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="ProductMaster.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ProductBatchMaster.aspx.cs">
+      <DependentUpon>ProductBatchMaster.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ProductSerialization.aspx.cs">
+      <DependentUpon>ProductSerialization.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ProductSerialBarcode.aspx.cs">
+      <DependentUpon>ProductSerialBarcode.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="ProductNatureSetup.aspx.cs">
@@ -341,6 +497,16 @@
     <Compile Include="Setup.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="MasterSetup.aspx.cs">
+      <DependentUpon>MasterSetup.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="StateSetup.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="StreetSetup.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="TaskMaster.aspx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
@@ -351,6 +517,10 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="TitleSetup.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="EmployeeCategorySetup.aspx.cs">
+      <DependentUpon>EmployeeCategorySetup.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="UnitOfMeasureSetup.aspx.cs">

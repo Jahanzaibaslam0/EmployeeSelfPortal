@@ -41,7 +41,7 @@
         <select id="ddlEmployeeFilter" class="form-control">
           <option value="">All Employees</option>
           <% foreach (var emp in EmployeeOptions) { %>
-          <option value="<%= Server.HtmlEncode(emp.EmployeeCode) %>"><%= Server.HtmlEncode(emp.EmployeeCode) %> – <%= Server.HtmlEncode(emp.EmployeeName) %></option>
+          <option value="<%= Server.HtmlEncode(emp.EmployeeCode) %>"><%= Server.HtmlEncode(emp.EmployeeCode) %> &ndash; <%= Server.HtmlEncode(emp.EmployeeName) %></option>
           <% } %>
         </select>
         <% } %>
@@ -68,12 +68,12 @@
           <% for (var i = 0; i < Documents.Count; i++) {
                var doc = Documents[i];
                var statusClass = StatusBadgeClass(doc.VerificationStatus);
-               var fileHref = DocumentHref(doc.DocumentPath);
+               var fileHref = DocumentHref(doc);
           %>
           <tr data-emp="<%= Server.HtmlEncode(doc.EmployeeCode) %>" data-status="<%= Server.HtmlEncode(doc.VerificationStatus) %>">
             <td><%= i + 1 %></td>
             <% if (IsAdminView) { %>
-            <td><%= Server.HtmlEncode(doc.EmployeeCode) %> – <%= Server.HtmlEncode(doc.EmployeeName) %></td>
+            <td><%= Server.HtmlEncode(doc.EmployeeCode) %> &ndash; <%= Server.HtmlEncode(doc.EmployeeName) %></td>
             <% } %>
             <td><%= Server.HtmlEncode(doc.DocumentTypeName) %></td>
             <td><%= Server.HtmlEncode(doc.DocumentNumber) %></td>

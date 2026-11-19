@@ -30,14 +30,14 @@
         </select></div>
       <div class="form-group"><label>Primary Department</label>
         <select name="departmentID" class="form-control">
-          <option value="0">— None —</option>
+          <option value="0">&mdash; None &mdash;</option>
           <% foreach (var d in Departments) { %>
           <option value="<%= d.Id %>" <%= Input.DepartmentID==d.Id?"selected":"" %>><%= Server.HtmlEncode(d.Name) %></option>
           <% } %>
         </select></div>
       <div class="form-group"><label>Primary Job / Role</label>
         <select name="jobID" class="form-control">
-          <option value="0">— None —</option>
+          <option value="0">&mdash; None &mdash;</option>
           <% foreach (var j in Jobs) { %>
           <option value="<%= j.Id %>" <%= Input.JobID==j.Id?"selected":"" %>><%= Server.HtmlEncode(j.Name) %></option>
           <% } %>

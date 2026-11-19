@@ -1,25 +1,13 @@
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Home.aspx.cs" Inherits="HRMS.HomePage" %>
-<!DOCTYPE html>
-<html lang="en">
-<head runat="server">
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HRMS - Home</title>
-    <link rel="stylesheet" href="/css/style.css?v=10" />
-</head>
-<body>
-<form id="form1" runat="server">
-<%@ Register Src="~/Controls/AppHeader.ascx" TagPrefix="hrms" TagName="AppHeader" %>
-<hrms:AppHeader runat="server" PageTitleText="Home" />
-<main class="container">
+<%@ Page Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Home.aspx.cs" Inherits="HRMS.HomePage" %>
+<asp:Content ID="Main" ContentPlaceHolderID="MainContent" runat="server">
 <% if (ShowProfileSyncWarning) { %>
     <div class="alert alert-warning"><%= ProfileSyncMessage %></div>
 <% } %>
 <% if (Slides.Count == 0) { %>
     <section class="home-welcome-banner">
         <div class="home-welcome-text">
-            <h2>Welcome to HRMS</h2>
-            <p>Human Resource Management System — access HR processes and employee services from one place.</p>
+            <h2>Welcome to Ghazi Workstation</h2>
+            <p>Open a business module to reach the same processes you already use. Nothing in the workflows has changed &mdash; only how you find them.</p>
         </div>
     </section>
 <% } else { %>
@@ -27,40 +15,56 @@
         <div class="home-gallery-slider" id="homeGallerySlider">
         <% for (var i = 0; i < Slides.Count; i++) { var slide = Slides[i]; %>
             <div class="home-gallery-slide <%= i == 0 ? "active" : "" %>">
-                <img src="<%= slide.ImagePath %>" alt="<%= slide.Title %>" />
+                <img src="<%= ResolveUrl(slide.DisplayUrl) %>" alt="<%= Server.HtmlEncode(slide.Title) %>" />
                 <% if (!string.IsNullOrWhiteSpace(slide.Title)) { %>
-                <div class="home-gallery-caption"><strong><%= slide.Title %></strong>
-                <% if (!string.IsNullOrWhiteSpace(slide.Description)) { %><span><%= slide.Description %></span><% } %>
+                <div class="home-gallery-caption"><strong><%= Server.HtmlEncode(slide.Title) %></strong>
+                <% if (!string.IsNullOrWhiteSpace(slide.Description)) { %><span><%= Server.HtmlEncode(slide.Description) %></span><% } %>
                 </div><% } %>
             </div>
         <% } %>
         </div>
     </section>
 <% } %>
-<div class="quick-links-intro"><p>Browse HR processes, announcements, and employee services.</p></div>
-<section class="quick-links-section">
-    <div class="quick-links-section-header">
-        <h2>HR Processes &amp; Services</h2>
-        <span class="quick-links-count"><%= ProcessLinks.Count %> links</span>
-    </div>
-    <div class="quick-links-grid">
-    <% foreach (var link in ProcessLinks) { %>
-        <a href="<%= link.Url %>" class="quick-link-card quick-link-card--process">
-            <div class="quick-link-icon"><%= link.Icon %></div>
-            <div class="quick-link-body">
-                <h3><%= link.Title %></h3>
-                <p><%= link.Description %></p>
-                <span class="quick-link-badge"><%= link.Category %></span>
+<div class="quick-links-intro"><p>Choose a module, then open an existing process you are authorized to use.</p></div>
+<section class="ws-module-board">
+<% foreach (var mod in Modules) { %>
+    <article class="ws-module-card" id="mod-<%= mod.Id %>">
+        <div class="ws-module-card-head">
+            <span class="ws-mod-icon"><%= Server.HtmlEncode(mod.Icon) %></span>
+            <div>
+                <h2><%= Server.HtmlEncode(mod.Title) %></h2>
+                <p><%= Server.HtmlEncode(mod.Subtitle) %></p>
             </div>
-            <span class="quick-link-arrow">&#8594;</span>
-        </a>
-    <% } %>
-    </div>
+            <span class="quick-links-count"><%= mod.VisibleCount %> process<%= mod.VisibleCount == 1 ? "" : "es" %></span>
+        </div>
+        <div class="ws-module-card-body">
+            <% var any = false; foreach (var item in mod.Items) { if (!item.Visible) continue; any = true; %>
+            <a href="<%= item.Url %>" class="ws-process-link">
+                <strong><%= Server.HtmlEncode(item.Title) %></strong>
+                <span><%= Server.HtmlEncode(item.Description) %></span>
+            </a>
+            <% } %>
+            <% if (!any) { %>
+            <p class="ws-mod-empty">No processes are available in this module yet, or none are granted to your account.</p>
+            <% } %>
+        </div>
+    </article>
+<% } %>
 </section>
-</main>
-<%@ Register Src="~/Controls/AppFooter.ascx" TagPrefix="hrms" TagName="AppFooter" %>
-<hrms:AppFooter runat="server" />
-</form>
-<script src="/js/app.js"></script>
-</body>
-</html>
+</asp:Content>
+<asp:Content ID="Scripts" ContentPlaceHolderID="scripts" runat="server">
+<script>
+(function () {
+    var slider = document.getElementById('homeGallerySlider');
+    if (!slider) return;
+    var slides = slider.querySelectorAll('.home-gallery-slide');
+    if (slides.length < 2) return;
+    var index = 0;
+    setInterval(function () {
+        slides[index].classList.remove('active');
+        index = (index + 1) % slides.length;
+        slides[index].classList.add('active');
+    }, 6000);
+})();
+</script>
+</asp:Content>

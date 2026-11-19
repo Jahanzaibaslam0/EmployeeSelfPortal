@@ -52,6 +52,7 @@ namespace HRMS
     public partial class ExpenseMasterPage : AppBasePage
     {
         private readonly DataAccessScopeService _dataScope = new DataAccessScopeService();
+        private readonly AppInboxService _inbox = new AppInboxService();
 
         public string PageTitle => "Expense Master";
         public List<ExpenseListItem> Expenses { get; set; } = new List<ExpenseListItem>();
@@ -142,6 +143,7 @@ namespace HRMS
 
             try
             {
+                var previousStatus = Input.ExpenseID > 0 ? LoadWorkflowStatus(Input.ExpenseID) : "";
                 using (var conn = new SqlConnection(Conn))
                 {
                     conn.Open();
@@ -153,6 +155,7 @@ namespace HRMS
                         Input.ExpenseID = expenseId;
                     }
                 }
+                NotifyExpenseWorkflow(previousStatus, Input);
                 SetAlert(EditMode ? "Expense updated successfully." : "Expense saved successfully.");
                 Response.Redirect("~/ExpenseMaster.aspx?editId=" + Input.ExpenseID);
             }
@@ -191,6 +194,49 @@ namespace HRMS
             AlertMessage = message; AlertType = "error";
             LoadLookups(); ShowForm = true;
             if (DetailRecords.Count == 0) DetailRecords.Add(new ExpenseDetailRecord());
+        }
+
+        private string LoadWorkflowStatus(int expenseId)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                using (var cmd = new SqlCommand("SELECT ISNULL(WorkflowStatus,'') FROM tblExpense WHERE ExpenseID=@Id;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@Id", expenseId);
+                    conn.Open();
+                    return cmd.ExecuteScalar() as string ?? "";
+                }
+            }
+            catch { return ""; }
+        }
+
+        private void NotifyExpenseWorkflow(string previousStatus, ExpenseInput input)
+        {
+            if (input == null || input.ExpenseID <= 0) return;
+            var next = (input.WorkflowStatus ?? "").Trim();
+            if (string.Equals(previousStatus, next, StringComparison.OrdinalIgnoreCase)) return;
+            if (next.Equals("Draft", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(next))
+                return;
+
+            string action;
+            if (next.Equals("Submitted", StringComparison.OrdinalIgnoreCase)) action = "Submitted";
+            else if (next.Equals("Approved", StringComparison.OrdinalIgnoreCase)) action = "Approved";
+            else if (next.Equals("Rejected", StringComparison.OrdinalIgnoreCase)) action = "Rejected";
+            else action = "Status changed";
+
+            var emp = _inbox.EmployeeLabel(input.EmployeeID);
+            var refer = "EXP-" + input.ExpenseID.ToString("D6")
+                + (string.IsNullOrWhiteSpace(input.ExpensePurpose) ? "" : " — " + input.ExpensePurpose.Trim());
+            var body = _inbox.FormatBody("Expense Approval", refer, emp, action, next, _inbox.ActorName());
+            var title = "Expense " + action + " — " + refer;
+            var link = "/ExpenseMaster.aspx?editId=" + input.ExpenseID;
+            var targets = new HashSet<int>(_inbox.UserIdsForEmployee(input.EmployeeID));
+            foreach (var uid in _inbox.UserIdsWithForm("ExpenseMaster"))
+                targets.Add(uid);
+            if (Auth.CurrentUserId.HasValue)
+                targets.Add(Auth.CurrentUserId.Value);
+            _inbox.NotifyUsers(targets, title, body, link, AppInboxService.TypeExpense, input.ExpenseID);
         }
 
         private int SaveExpenseHeader(SqlConnection conn, SqlTransaction tx, ExpenseInput input)

@@ -24,6 +24,10 @@ namespace HRMS
         public DateTime? DateOfJoining { get; set; }
         public decimal BasicSalary { get; set; }
         public string Status { get; set; } = "Active";
+        public decimal CompletionPercent { get; set; }
+        public string CompletionDisplay => CompletionPercent.ToString("0.#") + "%";
+        public string CompletionTone =>
+            CompletionPercent >= 100m ? "is-complete" : CompletionPercent >= 70m ? "is-good" : CompletionPercent >= 40m ? "is-mid" : "is-low";
     }
 
     public class DepartmentItem
@@ -38,6 +42,16 @@ namespace HRMS
         public string Name { get; set; } = "";
     }
 
+    public class DesignationLookupItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string TitleName { get; set; } = "";
+        public int GradeID { get; set; }
+        public string PrivilegeTier { get; set; } = "";
+        public string ProbationDays { get; set; } = "";
+    }
+
     public class EmployeeInput
     {
         public int EmployeeID { get; set; }
@@ -47,6 +61,7 @@ namespace HRMS
         public string FathersHusbandsName { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public string NationalIDNumber { get; set; } = "";
+        public string BiometricID { get; set; } = "";
         public string Gender { get; set; } = "";
         public int GenderID { get; set; }
         public string DateOfBirth { get; set; } = "";
@@ -60,18 +75,22 @@ namespace HRMS
         public int EmploymentTypeID { get; set; }
         public int EmploymentStatusID { get; set; }
         public int WorkforceSegmentID { get; set; }
+        public int WorkArrangementID { get; set; }
+        public int AttendanceMethodID { get; set; }
         public int LegalEntityID { get; set; }
         public int BusinessUnitID { get; set; }
         public int SalesTeamID { get; set; }
         public int CostCenterID { get; set; }
         public int RegionID { get; set; }
         public int LocationID { get; set; }
+        public int DealForBranchID { get; set; }
+        public int SecondaryLocationID { get; set; }
         public int JobID { get; set; }
-        public int WorkerLocationID { get; set; }
         public int CityID { get; set; }
         public int ProvinceID { get; set; }
-        public int SalesGroupID { get; set; }
         public int GradeID { get; set; }
+        public int DesignationID { get; set; }
+        public string PrivilegeTier { get; set; } = "";
         public int ExtensionID { get; set; }
         public string Domicile { get; set; } = "";
         public int BloodGroupID { get; set; }
@@ -86,6 +105,7 @@ namespace HRMS
         public string ProbationEndDate { get; set; } = "";
         public string ConfirmationDate { get; set; } = "";
         public string BasicSalary { get; set; } = "";
+        public string ConvenienceAllowance { get; set; } = "";
         public string Status { get; set; } = "Active";
         public string PhotoPath { get; set; } = "";
 
@@ -96,11 +116,7 @@ namespace HRMS
 
         public string CurrentRoleTenureDisplay
         {
-            get
-            {
-                var src = !string.IsNullOrWhiteSpace(EmploymentStartDate) ? EmploymentStartDate : DateOfJoining;
-                return EmployeeMasterPage.FormatTenure(ParseDate(src));
-            }
+            get { return EmployeeMasterPage.FormatTenure(ParseDate(DateOfJoining)); }
         }
 
         public string AgeDisplay
@@ -135,6 +151,16 @@ namespace HRMS
         public string ProvinceState { get; set; } = "";
         public string PostalCode { get; set; } = "";
         public bool IsPrimary { get; set; }
+    }
+
+    public class EmployeeIdentificationInput
+    {
+        public int EmployeeIdentificationID { get; set; }
+        public string DocumentType { get; set; } = "";
+        public string RegistrationNo { get; set; } = "";
+        public string IssueDate { get; set; } = "";
+        public string ExpiryDate { get; set; } = "";
+        public string BlacklistComment { get; set; } = "";
     }
 
     public class EmployeeFamilyMemberInput
@@ -197,13 +223,17 @@ namespace HRMS
         public string DocumentPath { get; set; } = "";
         public string OriginalFileName { get; set; } = "";
         public string VerificationStatus { get; set; } = "Pending";
+        public string ViewUrl => EmployeeDocumentStorage.ViewUrl(EmployeeDocumentID);
     }
 
     public partial class EmployeeMasterPage : AppBasePage
     {
         private readonly EmployeeProfileAccessService _profileAccess = new EmployeeProfileAccessService();
+        private readonly ProfileChangeRequestService _profileChanges = new ProfileChangeRequestService();
         private readonly DataAccessScopeService _dataScope = new DataAccessScopeService();
         private readonly MasterExcelService _excel = new MasterExcelService();
+        private readonly PositionAssignmentService _positionAssignments = new PositionAssignmentService();
+        private readonly EmployeeProfileCompletionService _profileCompletion = new EmployeeProfileCompletionService();
 
         private static readonly HashSet<string> ProfilePhotoExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -221,6 +251,8 @@ namespace HRMS
         public List<LookupItem> EmploymentTypes { get; private set; } = new List<LookupItem>();
         public List<LookupItem> EmploymentStatuses { get; private set; } = new List<LookupItem>();
         public List<LookupItem> WorkforceSegments { get; private set; } = new List<LookupItem>();
+        public List<LookupItem> WorkArrangements { get; private set; } = new List<LookupItem>();
+        public List<LookupItem> AttendanceMethods { get; private set; } = new List<LookupItem>();
         public List<LookupItem> LegalEntities { get; private set; } = new List<LookupItem>();
         public List<LookupItem> BusinessUnits { get; private set; } = new List<LookupItem>();
         public List<LookupItem> Divisions { get; private set; } = new List<LookupItem>();
@@ -229,11 +261,16 @@ namespace HRMS
         public List<LookupItem> Regions { get; private set; } = new List<LookupItem>();
         public List<LookupItem> Locations { get; private set; } = new List<LookupItem>();
         public List<LookupItem> Jobs { get; private set; } = new List<LookupItem>();
-        public List<LookupItem> WorkerLocations { get; private set; } = new List<LookupItem>();
         public List<LookupItem> Cities { get; private set; } = new List<LookupItem>();
         public List<LookupItem> Provinces { get; private set; } = new List<LookupItem>();
-        public List<LookupItem> SalesGroups { get; private set; } = new List<LookupItem>();
         public List<LookupItem> Grades { get; private set; } = new List<LookupItem>();
+        public List<DesignationLookupItem> Designations { get; private set; } = new List<DesignationLookupItem>();
+        public string[] PrivilegeTierOptions => DesignationSetupPage.PrivilegeTiers;
+        public static readonly string[] DomicileValues =
+        {
+            "Punjab", "Sindh", "Urban", "Balochistan", "KPK", "Rural"
+        };
+        public string[] DomicileOptions => DomicileValues;
         public List<LookupItem> Extensions { get; private set; } = new List<LookupItem>();
         public List<LookupItem> BloodGroups { get; private set; } = new List<LookupItem>();
         public List<LookupItem> BenefitEntitlements { get; private set; } = new List<LookupItem>();
@@ -246,6 +283,7 @@ namespace HRMS
         public EmployeeInput Input { get; set; } = new EmployeeInput();
         public List<EmployeeContactInput> ContactRecords { get; private set; } = new List<EmployeeContactInput>();
         public List<EmployeeAddressInput> AddressRecords { get; private set; } = new List<EmployeeAddressInput>();
+        public List<EmployeeIdentificationInput> IdentificationRecords { get; private set; } = new List<EmployeeIdentificationInput>();
         public List<EmployeeFamilyMemberInput> FamilyRecords { get; private set; } = new List<EmployeeFamilyMemberInput>();
         public List<EmployeeBankInput> BankRecords { get; private set; } = new List<EmployeeBankInput>();
         public List<EmployeeEducationInput> EducationRecords { get; private set; } = new List<EmployeeEducationInput>();
@@ -258,12 +296,24 @@ namespace HRMS
         public bool HasFullEmployeeAccess { get; private set; }
         public bool IsProfileOnlyMode { get; private set; }
         public bool CanEditCurrentRecord { get; private set; }
+        public ProfileChangeRequest PendingProfileRequest { get; private set; }
+        public EmployeeProfileCompletionScore ProfileScore { get; private set; } = new EmployeeProfileCompletionScore();
         public string PhotoPath => Input != null ? (Input.PhotoPath ?? "") : "";
+        public string AssignedPositionNo
+        {
+            get
+            {
+                if (Input == null || Input.EmployeeID <= 0) return "";
+                try { return _positionAssignments.GetActivePositionNoForEmployee(Input.EmployeeID) ?? ""; }
+                catch { return ""; }
+            }
+        }
         public int ActiveEmployeeCount => Employees.Count(e => e.Status == "Active");
         public int InactiveEmployeeCount => Employees.Count - ActiveEmployeeCount;
 
         public string ContactsJsonInit => WebFormsJson.Serialize(ContactRecords);
         public string AddressesJsonInit => WebFormsJson.Serialize(AddressRecords);
+        public string IdentificationsJsonInit => WebFormsJson.Serialize(IdentificationRecords);
         public string FamilyJsonInit => WebFormsJson.Serialize(FamilyRecords);
         public string EducationJsonInit => WebFormsJson.Serialize(EducationRecords);
         public string CertificatesJsonInit => WebFormsJson.Serialize(CertificateRecords);
@@ -273,6 +323,7 @@ namespace HRMS
         public string CurrenciesLookupJson => WebFormsJson.Serialize(Currencies);
         public string BankGroupsLookupJson => WebFormsJson.Serialize(BankGroups);
         public string DocumentTypesLookupJson => WebFormsJson.Serialize(DocumentTypes);
+        public string DesignationsLookupJson => WebFormsJson.Serialize(Designations);
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -288,6 +339,14 @@ namespace HRMS
                 return;
             }
 
+            EnsureBiometricColumn();
+            AttendanceMethodSetupPage.EnsureTable(Conn);
+            DesignationSetupPage.EnsureTable(Conn);
+            EnsureEmployeeLocationExtraColumns();
+            EnsureIdentificationTable();
+            _profileChanges.EnsureSchema();
+            _profileChanges.EnsureSchema();
+
             if (IsPostBack)
             {
                 var handler = Request.Form["__handler"] ?? "Save";
@@ -301,6 +360,9 @@ namespace HRMS
                         return;
                     case "SaveAddresses":
                         OnPostSaveAddresses();
+                        return;
+                    case "SaveIdentifications":
+                        OnPostSaveIdentifications();
                         return;
                     case "SaveFamilyMembers":
                         OnPostSaveFamilyMembers();
@@ -332,6 +394,8 @@ namespace HRMS
             var newEmp = string.Equals(Request.QueryString["newEmployee"], "1", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(Request.QueryString["newEmployee"], "true", StringComparison.OrdinalIgnoreCase);
             OnGet(QueryInt("editId"), newEmp);
+            if (ShowForm)
+                RefreshProfileScore();
         }
 
         private void OnGet(int? editId, bool newEmployee)
@@ -382,7 +446,11 @@ namespace HRMS
                 if (editId.HasValue && editId > 0)
                 {
                     LoadForEdit(editId.Value);
+                    ResolveDesignationFromText(Input);
+                    Designations = LoadDesignations();
                     EditMode = true;
+                    try { PendingProfileRequest = _profileChanges.GetPendingForEmployee(editId.Value); }
+                    catch { }
                 }
 
                 EmployeeLookups = LoadEmployeeLookups(Input.EmployeeID > 0 ? (int?)Input.EmployeeID : null);
@@ -414,7 +482,36 @@ namespace HRMS
 
             EditMode = FormBool("EditMode") || employeeId > 0;
             Input = BindInputFromForm(employeeId);
+            SyncRemovedFormFields(Input);
+            if (!IsProfileOnlyMode && Input.DesignationID <= 0)
+            {
+                AlertMessage = "Please select a Designation.";
+                AlertType = "error";
+                ShowForm = true;
+                LoadDepartments();
+                LoadLookupLists();
+                EmployeeLookups = LoadEmployeeLookups(Input.EmployeeID > 0 ? (int?)Input.EmployeeID : null);
+                EnsureDefaultRows();
+                InitializeAccessFlags(Input.EmployeeID > 0 ? (int?)Input.EmployeeID : null);
+                RefreshProfileScore();
+                return;
+            }
+            ApplyDesignationDefaults(Input);
             ApplyTenureCalculations(Input);
+
+            if (!InputValidators.TryValidateNationalId(Input.NationalIDNumber, out var nationalIdError))
+            {
+                AlertMessage = nationalIdError;
+                AlertType = "error";
+                ShowForm = true;
+                LoadDepartments();
+                LoadLookupLists();
+                EmployeeLookups = LoadEmployeeLookups(Input.EmployeeID > 0 ? (int?)Input.EmployeeID : null);
+                EnsureDefaultRows();
+                InitializeAccessFlags(Input.EmployeeID > 0 ? (int?)Input.EmployeeID : null);
+                RefreshProfileScore();
+                return;
+            }
 
             if (IsProfileOnlyMode && employeeId > 0)
                 PreserveHrManagedFields(Input);
@@ -431,6 +528,9 @@ namespace HRMS
             }
 
             EditMode = employeeId > 0;
+
+            if (employeeId > 0 && QueueAllProfileChanges(employeeId, Input))
+                return;
 
             try
             {
@@ -473,6 +573,7 @@ namespace HRMS
             EmployeeLookups = LoadEmployeeLookups(Input.EmployeeID > 0 ? (int?)Input.EmployeeID : null);
             EnsureDefaultRows();
             InitializeAccessFlags(Input.EmployeeID > 0 ? (int?)Input.EmployeeID : null);
+            RefreshProfileScore();
         }
 
         private EmployeeInput BindInputFromForm(int employeeId)
@@ -487,6 +588,7 @@ namespace HRMS
                 FathersHusbandsName = FormString("FathersHusbandsName"),
                 DisplayName = FormString("DisplayName"),
                 NationalIDNumber = FormString("NationalIDNumber"),
+                BiometricID = FormString("BiometricID"),
                 GenderID = genderId,
                 Gender = GetLookupName("tblGender", "GenderID", "GenderName", genderId),
                 DateOfBirth = FormString("DateOfBirth"),
@@ -495,23 +597,27 @@ namespace HRMS
                 DivisionID = FormInt("DivisionID"),
                 NationalityID = FormInt("NationalityID"),
                 ReligionID = FormInt("ReligionID"),
-                LanguageID = FormInt("LanguageID"),
+                LanguageID = 0,
                 WorkerCategoryID = FormInt("WorkerCategoryID"),
                 EmploymentTypeID = FormInt("EmploymentTypeID"),
                 EmploymentStatusID = FormInt("EmploymentStatusID"),
                 WorkforceSegmentID = FormInt("WorkforceSegmentID"),
+                WorkArrangementID = FormInt("WorkArrangementID"),
+                AttendanceMethodID = FormInt("AttendanceMethodID"),
                 LegalEntityID = FormInt("LegalEntityID"),
                 BusinessUnitID = FormInt("BusinessUnitID"),
                 SalesTeamID = FormInt("SalesTeamID"),
                 CostCenterID = FormInt("CostCenterID"),
                 RegionID = FormInt("RegionID"),
                 LocationID = FormInt("LocationID"),
+                DealForBranchID = FormInt("DealForBranchID"),
+                SecondaryLocationID = FormInt("SecondaryLocationID"),
                 JobID = FormInt("JobID"),
-                WorkerLocationID = FormInt("WorkerLocationID"),
                 CityID = FormInt("CityID"),
                 ProvinceID = FormInt("ProvinceID"),
-                SalesGroupID = FormInt("SalesGroupID"),
                 GradeID = FormInt("GradeID"),
+                DesignationID = FormInt("DesignationID"),
+                PrivilegeTier = FormString("PrivilegeTier"),
                 ExtensionID = FormInt("ExtensionID"),
                 Domicile = FormString("Domicile"),
                 BloodGroupID = FormInt("BloodGroupID"),
@@ -521,14 +627,35 @@ namespace HRMS
                 PermanentResponsibleEmployeeID = FormInt("PermanentResponsibleEmployeeID"),
                 Designation = FormString("Designation"),
                 DateOfJoining = FormString("DateOfJoining"),
-                EmploymentStartDate = FormString("EmploymentStartDate"),
+                EmploymentStartDate = FormString("DateOfJoining"),
                 ProbationPeriodDays = FormString("ProbationPeriodDays"),
                 ProbationEndDate = FormString("ProbationEndDate"),
                 ConfirmationDate = FormString("ConfirmationDate"),
                 BasicSalary = FormString("BasicSalary"),
+                ConvenienceAllowance = FormString("ConvenienceAllowance"),
                 Status = string.IsNullOrEmpty(FormString("Status")) ? "Active" : FormString("Status"),
                 PhotoPath = FormString("PhotoPath")
             };
+        }
+
+        private void SyncRemovedFormFields(EmployeeInput input)
+        {
+            if (input == null) return;
+            input.EmploymentStartDate = input.DateOfJoining ?? "";
+            if (input.EmployeeID <= 0) return;
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                using (var cmd = new SqlCommand(
+                    "SELECT LanguageID FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@EmployeeID", input.EmployeeID);
+                    conn.Open();
+                    var result = cmd.ExecuteScalar();
+                    input.LanguageID = IntOrZero(result);
+                }
+            }
+            catch { }
         }
 
         private void OnPostDelete(int deleteId)
@@ -552,6 +679,7 @@ namespace HRMS
                 using (var cmd = new SqlCommand(@"
 DELETE FROM tblEmployeeContact WHERE EmployeeID = @EmployeeID;
 DELETE FROM tblEmployeeAddress WHERE EmployeeID = @EmployeeID;
+DELETE FROM tblEmployeeIdentification WHERE EmployeeID = @EmployeeID;
 DELETE FROM tblEmployeeFamilyMember WHERE EmployeeID = @EmployeeID;
 DELETE FROM tblEmployeeBank WHERE EmployeeID = @EmployeeID;
 DELETE FROM tblEmployeeEducation WHERE EmployeeID = @EmployeeID;
@@ -598,6 +726,9 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 RedirectToEmployeeEdit(employeeId);
                 return;
             }
+
+            if (QueueAllProfileChanges(employeeId, null))
+                return;
 
             try
             {
@@ -692,6 +823,9 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 return;
             }
 
+            if (QueueAllProfileChanges(employeeId, null))
+                return;
+
             try
             {
                 using (var conn = new SqlConnection(Conn))
@@ -714,6 +848,142 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 SetAlert("Error saving address details: " + ex.Message, "error");
             }
             RedirectToEmployeeEdit(employeeId);
+        }
+
+        private static readonly HashSet<string> IdentificationDocumentTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "CNIC", "CNIC Blacklist", "Employee Card", "Health Insurance", "Life Insurance",
+            "Driving License", "Next of Kin", "EOBI", "Social Security", "DSL", "PCR"
+        };
+
+        private static readonly HashSet<string> CnicIdentificationTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "CNIC", "CNIC Blacklist"
+        };
+
+        public static readonly string[] BlacklistCommentValues =
+        {
+            "None",
+            "Severe breach of confidence",
+            "Loss and damage of company property",
+            "Fraudulence",
+            "Misconduct",
+            "Breach rules and policies",
+            "Outstanding balance not cleared"
+        };
+
+        private static readonly HashSet<string> BlacklistCommentSet = new HashSet<string>(BlacklistCommentValues, StringComparer.OrdinalIgnoreCase);
+
+        private void OnPostSaveIdentifications()
+        {
+            var employeeId = ResolveEmployeeId(FormInt("EmployeeID"), FormString("EmployeeCode"));
+            if (!EnsureCanEditEmployee(employeeId)) return;
+
+            List<EmployeeIdentificationInput> records;
+            if (!WebFormsJson.TryDeserializeList(FormString("IdentificationsJson"), out records))
+            {
+                SetAlert("Could not read identification data from the form. Please refresh the page and try again.", "error");
+                RedirectToEmployeeEdit(employeeId);
+                return;
+            }
+
+            string identError;
+            if (!TryValidateIdentifications(records, out identError))
+            {
+                SetAlert(identError, "error");
+                RedirectToEmployeeEdit(employeeId);
+                return;
+            }
+
+            if (QueueAllProfileChanges(employeeId, null))
+                return;
+
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                {
+                    conn.Open();
+                    using (var tx = conn.BeginTransaction())
+                    {
+                        SyncEmployeeIdentifications(conn, tx, employeeId, records);
+                        tx.Commit();
+                    }
+                }
+                SetAlert("Employee identification details saved successfully.");
+            }
+            catch (SqlException ex)
+            {
+                SetAlert(FormatChildSaveSqlError("identification", ex), "error");
+            }
+            catch (Exception ex)
+            {
+                SetAlert("Error saving identification details: " + ex.Message, "error");
+            }
+            RedirectToEmployeeEdit(employeeId);
+        }
+
+        private static bool TryValidateIdentifications(List<EmployeeIdentificationInput> records, out string error)
+        {
+            error = null;
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in records.Where(x =>
+                !string.IsNullOrWhiteSpace(x.DocumentType) || !string.IsNullOrWhiteSpace(x.RegistrationNo)))
+            {
+                if (string.IsNullOrWhiteSpace(row.DocumentType))
+                {
+                    error = "Document Type is required for each identification row.";
+                    return false;
+                }
+                if (!IdentificationDocumentTypes.Contains(row.DocumentType.Trim()))
+                {
+                    error = "Select a valid identification document type.";
+                    return false;
+                }
+                if (string.IsNullOrWhiteSpace(row.RegistrationNo))
+                {
+                    error = "Registration No. is required for each identification row.";
+                    return false;
+                }
+
+                DateTime issue = DateTime.MinValue;
+                DateTime expiry = DateTime.MinValue;
+                var hasIssue = !string.IsNullOrWhiteSpace(row.IssueDate) && DateTime.TryParse(row.IssueDate, out issue);
+                var hasExpiry = !string.IsNullOrWhiteSpace(row.ExpiryDate) && DateTime.TryParse(row.ExpiryDate, out expiry);
+                if (!string.IsNullOrWhiteSpace(row.IssueDate) && !hasIssue)
+                {
+                    error = "Issue Date is not a valid date.";
+                    return false;
+                }
+                if (!string.IsNullOrWhiteSpace(row.ExpiryDate) && !hasExpiry)
+                {
+                    error = "Expiry Date is not a valid date.";
+                    return false;
+                }
+                if (hasIssue && hasExpiry && expiry.Date < issue.Date)
+                {
+                    error = "Expiry Date cannot be earlier than Issue Date.";
+                    return false;
+                }
+
+                row.BlacklistComment = NormalizeBlacklistComment(row.DocumentType, row.BlacklistComment);
+
+                var key = row.DocumentType.Trim() + "|" + row.RegistrationNo.Trim();
+                if (!keys.Add(key))
+                {
+                    error = "Duplicate identification detected. Each document type and registration number must be unique.";
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static string NormalizeBlacklistComment(string documentType, string comment)
+        {
+            if (!CnicIdentificationTypes.Contains((documentType ?? "").Trim()))
+                return "";
+            var value = (comment ?? "").Trim();
+            if (string.IsNullOrEmpty(value)) return "None";
+            return BlacklistCommentSet.Contains(value) ? value : "None";
         }
 
         private static bool TryValidateAddressDuplicates(List<EmployeeAddressInput> addresses, out string error)
@@ -761,6 +1031,9 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 RedirectToEmployeeEdit(employeeId);
                 return;
             }
+
+            if (QueueAllProfileChanges(employeeId, null))
+                return;
 
             try
             {
@@ -816,6 +1089,9 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 return;
             }
 
+            if (QueueAllProfileChanges(employeeId, null))
+                return;
+
             try
             {
                 using (var conn = new SqlConnection(Conn))
@@ -869,6 +1145,9 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 RedirectToEmployeeEdit(employeeId);
                 return;
             }
+
+            if (QueueAllProfileChanges(employeeId, null))
+                return;
 
             try
             {
@@ -928,6 +1207,9 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 return;
             }
 
+            if (QueueAllProfileChanges(employeeId, null))
+                return;
+
             try
             {
                 using (var conn = new SqlConnection(Conn))
@@ -985,6 +1267,9 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 RedirectToEmployeeEdit(employeeId);
                 return;
             }
+
+            if (QueueAllProfileChanges(employeeId, null))
+                return;
 
             try
             {
@@ -1095,6 +1380,87 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 : _profileAccess.CanEditEmployee(employeeId.Value);
         }
 
+        private bool QueueAllProfileChanges(int employeeId, EmployeeInput personal)
+        {
+            if (!_profileChanges.RequiresWorkflow(employeeId))
+                return false;
+            if (personal == null)
+            {
+                personal = BindInputFromForm(employeeId);
+                SyncRemovedFormFields(personal);
+                if (IsProfileOnlyMode)
+                    PreserveHrManagedFields(personal);
+            }
+            List<EmployeeContactInput> contacts;
+            List<EmployeeAddressInput> addresses;
+            List<EmployeeIdentificationInput> identifications;
+            List<EmployeeFamilyMemberInput> family;
+            List<EmployeeBankInput> banks;
+            List<EmployeeEducationInput> education;
+            List<EmployeeCertificateInput> certificates;
+            List<EmployeeDocumentInput> documents;
+            if (!TryPostedProfileList("ContactsJson", out contacts)
+                || !TryPostedProfileList("AddressesJson", out addresses)
+                || !TryPostedProfileList("IdentificationsJson", out identifications)
+                || !TryPostedProfileList("FamilyMembersJson", out family)
+                || !TryPostedProfileList("BanksJson", out banks)
+                || !TryPostedProfileList("EducationJson", out education)
+                || !TryPostedProfileList("CertificatesJson", out certificates)
+                || !TryPostedProfileList("DocumentsJson", out documents))
+            {
+                SetAlert("Could not read every profile field from the form. Please refresh and try again.", "error");
+                RedirectToEmployeeEdit(employeeId);
+                return true;
+            }
+            try
+            {
+                ApplyWorkflowPhoto(personal);
+            }
+            catch (Exception ex)
+            {
+                SetAlert(ex.Message, "error");
+                RedirectToEmployeeEdit(employeeId);
+                return true;
+            }
+            ProfileChangeDraft draft;
+            var error = _profileChanges.BuildDraft(employeeId, personal, contacts, addresses, identifications,
+                family, banks, education, certificates, documents, out draft);
+            if (!string.IsNullOrEmpty(error))
+            {
+                SetAlert(error, "error");
+                RedirectToEmployeeEdit(employeeId);
+                return true;
+            }
+            _profileChanges.StoreDraft(draft);
+            Response.Redirect("~/ProfileChangeConfirm.aspx", false);
+            Context.ApplicationInstance.CompleteRequest();
+            return true;
+        }
+
+        private void ApplyWorkflowPhoto(EmployeeInput personal)
+        {
+            if (personal == null) return;
+            var photoFile = Request.Files["ProfilePhoto"];
+            var removePhoto = FormBool("RemovePhoto");
+            if (photoFile != null && photoFile.ContentLength > 0)
+                personal.PhotoPath = SaveProfilePhotoFile(photoFile, personal.EmployeeID) ?? personal.PhotoPath;
+            else if (removePhoto)
+                personal.PhotoPath = "";
+        }
+
+        private bool TryPostedProfileList<T>(string fieldName, out List<T> list)
+        {
+            list = null;
+            var json = FormString(fieldName);
+            if (string.IsNullOrWhiteSpace(json))
+                return true;
+            List<T> parsed;
+            if (!WebFormsJson.TryDeserializeList(json, out parsed))
+                return false;
+            list = parsed;
+            return true;
+        }
+
         private bool EnsureCanEditEmployee(int employeeId)
         {
             if (employeeId <= 0)
@@ -1145,15 +1511,15 @@ DELETE FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 using (var conn = new SqlConnection(Conn))
                 using (var cmd = new SqlCommand(@"
 SELECT EmployeeCode, DepartmentID, DivisionID,
-       WorkerCategoryID, EmploymentTypeID, EmploymentStatusID, WorkforceSegmentID,
+       WorkerCategoryID, EmploymentTypeID, EmploymentStatusID, WorkforceSegmentID, WorkArrangementID, AttendanceMethodID,
        LegalEntityID, BusinessUnitID, SalesTeamID, CostCenterID,
-       RegionID, LocationID, JobID, WorkerLocationID,
-       CityID, ProvinceID, SalesGroupID, GradeID, ExtensionID,
+       RegionID, LocationID, DealForBranchID, SecondaryLocationID, JobID,
+       CityID, ProvinceID, GradeID, DesignationID, PrivilegeTier, ExtensionID,
        BenefitEntitlementID, UserID,
        TemporaryResponsibleEmployeeID, PermanentResponsibleEmployeeID,
        Designation, DateOfJoining, EmploymentStartDate,
        ProbationPeriodDays, ProbationEndDate, ConfirmationDate,
-       BasicSalary, Status
+       BasicSalary, ConvenienceAllowance, Status, BiometricID
 FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                 {
                     cmd.Parameters.AddWithValue("@EmployeeID", input.EmployeeID);
@@ -1168,18 +1534,22 @@ FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                         input.EmploymentTypeID = IntOrZero(dr["EmploymentTypeID"]);
                         input.EmploymentStatusID = IntOrZero(dr["EmploymentStatusID"]);
                         input.WorkforceSegmentID = IntOrZero(dr["WorkforceSegmentID"]);
+                        input.WorkArrangementID = IntOrZero(dr["WorkArrangementID"]);
+                        input.AttendanceMethodID = IntOrZero(dr["AttendanceMethodID"]);
                         input.LegalEntityID = IntOrZero(dr["LegalEntityID"]);
                         input.BusinessUnitID = IntOrZero(dr["BusinessUnitID"]);
                         input.SalesTeamID = IntOrZero(dr["SalesTeamID"]);
                         input.CostCenterID = IntOrZero(dr["CostCenterID"]);
                         input.RegionID = IntOrZero(dr["RegionID"]);
                         input.LocationID = IntOrZero(dr["LocationID"]);
+                        input.DealForBranchID = IntOrZero(dr["DealForBranchID"]);
+                        input.SecondaryLocationID = IntOrZero(dr["SecondaryLocationID"]);
                         input.JobID = IntOrZero(dr["JobID"]);
-                        input.WorkerLocationID = IntOrZero(dr["WorkerLocationID"]);
                         input.CityID = IntOrZero(dr["CityID"]);
                         input.ProvinceID = IntOrZero(dr["ProvinceID"]);
-                        input.SalesGroupID = IntOrZero(dr["SalesGroupID"]);
                         input.GradeID = IntOrZero(dr["GradeID"]);
+                        input.DesignationID = IntOrZero(dr["DesignationID"]);
+                        input.PrivilegeTier = StrOrEmpty(dr["PrivilegeTier"]);
                         input.ExtensionID = IntOrZero(dr["ExtensionID"]);
                         input.BenefitEntitlementID = IntOrZero(dr["BenefitEntitlementID"]);
                         input.UserID = IntOrZero(dr["UserID"]);
@@ -1192,7 +1562,10 @@ FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                         input.ProbationEndDate = DateOrEmpty(dr["ProbationEndDate"]);
                         input.ConfirmationDate = DateOrEmpty(dr["ConfirmationDate"]);
                         input.BasicSalary = StrOrEmpty(dr["BasicSalary"]);
+                        input.ConvenienceAllowance = StrOrEmpty(dr["ConvenienceAllowance"]);
                         input.Status = dr["Status"].ToString() ?? "Active";
+                        try { input.BiometricID = dr["BiometricID"] == DBNull.Value ? "" : Convert.ToInt32(dr["BiometricID"]).ToString(); }
+                        catch { /* column may be absent on older DBs */ }
                     }
                 }
             }
@@ -1307,6 +1680,46 @@ ORDER BY e.EmployeeID DESC;", conn))
                 }
                 catch { /* leave empty */ }
             }
+
+            ApplyListCompletionScores();
+        }
+
+        private void ApplyListCompletionScores()
+        {
+            if (Employees == null || Employees.Count == 0) return;
+            try
+            {
+                var scores = _profileCompletion.ScoreEmployees(Employees.Select(e => e.EmployeeID).ToList());
+                foreach (var emp in Employees)
+                {
+                    EmployeeProfileCompletionScore score;
+                    if (scores.TryGetValue(emp.EmployeeID, out score) && score != null)
+                        emp.CompletionPercent = score.Percent;
+                }
+            }
+            catch { /* list still usable without scores */ }
+        }
+
+        private void RefreshProfileScore()
+        {
+            try
+            {
+                ProfileScore = _profileCompletion.Calculate(
+                    Input,
+                    DocumentRecords,
+                    ContactRecords,
+                    AddressRecords,
+                    IdentificationRecords,
+                    FamilyRecords,
+                    BankRecords,
+                    EducationRecords,
+                    CertificateRecords,
+                    _profileCompletion.LoadRequiredDocumentTypeIds());
+            }
+            catch
+            {
+                ProfileScore = new EmployeeProfileCompletionScore();
+            }
         }
 
         private void LoadDepartments()
@@ -1341,11 +1754,13 @@ WHERE ISNULL(IsActive, 1) = 1 ORDER BY DepartmentName;", conn))
             Genders = LoadLookup("tblGender", "GenderID", "GenderName");
             Nationalities = LoadLookup("tblNationality", "NationalityID", "NationalityName");
             Religions = LoadLookup("tblReligion", "ReligionID", "ReligionName");
-            Languages = LoadLookup("tblLanguage", "LanguageID", "LanguageName");
+            Languages = new List<LookupItem>();
             WorkerCategories = LoadLookup("tblWorkerCategory", "WorkerCategoryID", "WorkerCategoryName");
             EmploymentTypes = LoadLookup("tblEmploymentType", "EmploymentTypeID", "EmploymentTypeName");
             EmploymentStatuses = LoadLookup("tblEmploymentStatus", "EmploymentStatusID", "EmploymentStatusName");
             WorkforceSegments = LoadLookup("tblWorkforceSegment", "WorkforceSegmentID", "WorkforceSegmentName");
+            WorkArrangements = LoadLookup("tblWorkArrangement", "WorkArrangementID", "WorkArrangementName");
+            AttendanceMethods = LoadLookup("tblAttendanceMethod", "AttendanceMethodID", "AttendanceMethodName");
             LegalEntities = LoadLookup("tblLegalEntity", "LegalEntityID", "LegalEntityName");
             BusinessUnits = LoadLookup("tblBusinessUnit", "BusinessUnitID", "BusinessUnitName");
             Divisions = LoadLookup("tblDivision", "DivisionID", "DivisionName");
@@ -1354,11 +1769,10 @@ WHERE ISNULL(IsActive, 1) = 1 ORDER BY DepartmentName;", conn))
             Regions = LoadLookup("tblRegion", "RegionID", "RegionName");
             Locations = LoadLookup("tblLocation", "LocationID", "LocationName");
             Jobs = LoadJobs();
-            WorkerLocations = LoadWorkerLocations();
             Cities = LoadLookup("tblCity", "CityID", "CityName");
             Provinces = LoadLookup("tblProvince", "ProvinceID", "ProvinceName");
-            SalesGroups = LoadLookup("tblSalesGroup", "SalesGroupID", "SalesGroupName");
             Grades = LoadLookup("tblGrade", "GradeID", "GradeName");
+            Designations = LoadDesignations();
             Extensions = LoadExtensions();
             BloodGroups = LoadLookup("tblBloodGroup", "BloodGroupID", "BloodGroupName");
             BenefitEntitlements = LoadLookup("tblBenefitEntitlement", "BenefitEntitlementID", "BenefitEntitlementName");
@@ -1367,6 +1781,91 @@ WHERE ISNULL(IsActive, 1) = 1 ORDER BY DepartmentName;", conn))
             Currencies = LoadCurrencies();
             BankGroups = LoadLookup("tblBankGroup", "BankGroupID", "BankGroupName");
             DocumentTypes = LoadDocumentTypes();
+        }
+
+        private List<DesignationLookupItem> LoadDesignations()
+        {
+            var items = new List<DesignationLookupItem>();
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                using (var cmd = new SqlCommand(@"
+SELECT d.DesignationID, ISNULL(t.TitleName, '') AS TitleName,
+       d.GradeID, ISNULL(g.GradeName, '') AS GradeName,
+       ISNULL(d.PrivilegeTier, N'None') AS PrivilegeTier,
+       d.ProbationDays, d.IsActive
+FROM tblDesignation d
+LEFT JOIN tblTitle t ON t.TitleID = d.TitleID
+LEFT JOIN tblGrade g ON g.GradeID = d.GradeID
+WHERE d.IsActive = 1 OR d.DesignationID = @CurrentID
+ORDER BY t.TitleName, g.GradeName;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@CurrentID", Input != null && Input.DesignationID > 0 ? Input.DesignationID : 0);
+                    conn.Open();
+                    using (var dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            var title = dr["TitleName"].ToString() ?? "";
+                            var grade = dr["GradeName"].ToString() ?? "";
+                            items.Add(new DesignationLookupItem
+                            {
+                                Id = Convert.ToInt32(dr["DesignationID"]),
+                                TitleName = title,
+                                Name = title,
+                                GradeID = IntOrZero(dr["GradeID"]),
+                                PrivilegeTier = dr["PrivilegeTier"] == DBNull.Value ? "None" : dr["PrivilegeTier"].ToString() ?? "None",
+                                ProbationDays = dr["ProbationDays"] == DBNull.Value ? "" : Convert.ToInt32(dr["ProbationDays"]).ToString()
+                            });
+                            if (!string.IsNullOrWhiteSpace(grade))
+                                items[items.Count - 1].Name = title + " — " + grade;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return items;
+        }
+
+        private void ApplyDesignationDefaults(EmployeeInput input)
+        {
+            if (input == null || input.DesignationID <= 0) return;
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                using (var cmd = new SqlCommand(@"
+SELECT ISNULL(t.TitleName, '') AS TitleName, d.GradeID,
+       ISNULL(d.PrivilegeTier, N'None') AS PrivilegeTier, d.ProbationDays
+FROM tblDesignation d
+LEFT JOIN tblTitle t ON t.TitleID = d.TitleID
+WHERE d.DesignationID = @DesignationID;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@DesignationID", input.DesignationID);
+                    conn.Open();
+                    using (var dr = cmd.ExecuteReader())
+                    {
+                        if (!dr.Read()) return;
+                        var title = dr["TitleName"].ToString() ?? "";
+                        if (!string.IsNullOrWhiteSpace(title))
+                            input.Designation = title.Trim();
+                        input.GradeID = IntOrZero(dr["GradeID"]);
+                        input.PrivilegeTier = dr["PrivilegeTier"] == DBNull.Value ? "" : dr["PrivilegeTier"].ToString() ?? "";
+                        input.ProbationPeriodDays = dr["ProbationDays"] == DBNull.Value ? "" : Convert.ToInt32(dr["ProbationDays"]).ToString();
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void ResolveDesignationFromText(EmployeeInput input)
+        {
+            if (input == null || input.DesignationID > 0 || string.IsNullOrWhiteSpace(input.Designation))
+                return;
+            var name = input.Designation.Trim();
+            var match = Designations.FirstOrDefault(d =>
+                string.Equals(d.TitleName, name, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+                input.DesignationID = match.Id;
         }
 
         private List<LookupItem> LoadLookup(string tableName, string idColumn, string nameColumn)
@@ -1521,39 +2020,6 @@ FROM tblEmployee e WHERE e.Status = 'Active'";
             return items;
         }
 
-        private List<LookupItem> LoadWorkerLocations()
-        {
-            var items = new List<LookupItem>();
-            try
-            {
-                using (var conn = new SqlConnection(Conn))
-                using (var cmd = new SqlCommand(@"
-SELECT wl.WorkerLocationID, e.EmployeeCode, pl.LocationName AS PrimaryLocationName
-FROM tblWorkerLocation wl
-INNER JOIN tblEmployee e ON e.EmployeeID = wl.EmployeeID
-LEFT JOIN tblLocation pl ON pl.LocationID = wl.PrimaryLocationID
-WHERE wl.IsActive = 1 ORDER BY e.EmployeeCode;", conn))
-                {
-                    conn.Open();
-                    using (var dr = cmd.ExecuteReader())
-                    {
-                        while (dr.Read())
-                        {
-                            var code = dr["EmployeeCode"].ToString() ?? "";
-                            var loc = dr["PrimaryLocationName"] == DBNull.Value ? "" : dr["PrimaryLocationName"].ToString();
-                            items.Add(new LookupItem
-                            {
-                                Id = Convert.ToInt32(dr["WorkerLocationID"]),
-                                Name = string.IsNullOrEmpty(loc) ? code : code + " – " + loc
-                            });
-                        }
-                    }
-                }
-            }
-            catch { }
-            return items;
-        }
-
         private List<LookupItem> LoadBanks()
         {
             var items = new List<LookupItem>();
@@ -1661,17 +2127,17 @@ WHERE IsActive = 1 ORDER BY BankName, LocationName;", conn))
                     conn.Open();
                     using (var cmd = new SqlCommand(@"
 SELECT EmployeeID, EmployeeCode, FirstName, LastName,
-       FathersHusbandsName, DisplayName, NationalIDNumber,
+       FathersHusbandsName, DisplayName, NationalIDNumber, BiometricID,
        Gender, DateOfBirth, GenderID, MaritalStatus, DepartmentID, DivisionID,
        NationalityID, ReligionID, LanguageID,
        WorkerCategoryID, EmploymentTypeID, EmploymentStatusID,
-       WorkforceSegmentID, LegalEntityID, BusinessUnitID,
-       SalesTeamID, CostCenterID, RegionID, LocationID, JobID, WorkerLocationID,
-       CityID, ProvinceID, SalesGroupID, GradeID, ExtensionID, Domicile,
+       WorkforceSegmentID, WorkArrangementID, AttendanceMethodID, LegalEntityID, BusinessUnitID,
+       SalesTeamID, CostCenterID, RegionID, LocationID, DealForBranchID, SecondaryLocationID, JobID,
+       CityID, ProvinceID, GradeID, DesignationID, PrivilegeTier, ExtensionID, Domicile,
        BloodGroupID, BenefitEntitlementID, UserID,
        TemporaryResponsibleEmployeeID, PermanentResponsibleEmployeeID,
        Designation, DateOfJoining, EmploymentStartDate, ProbationPeriodDays,
-       ProbationEndDate, ConfirmationDate, BasicSalary, Status, PhotoPath
+       ProbationEndDate, ConfirmationDate, BasicSalary, ConvenienceAllowance, Status, PhotoPath
 FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                     {
                         cmd.Parameters.AddWithValue("@EmployeeID", employeeID);
@@ -1692,6 +2158,7 @@ FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                                     FathersHusbandsName = StrOrEmpty(dr["FathersHusbandsName"]),
                                     DisplayName = StrOrEmpty(dr["DisplayName"]),
                                     NationalIDNumber = StrOrEmpty(dr["NationalIDNumber"]),
+                                    BiometricID = dr["BiometricID"] == DBNull.Value ? "" : Convert.ToInt32(dr["BiometricID"]).ToString(),
                                     Gender = genderName,
                                     GenderID = genderId,
                                     DateOfBirth = DateOrEmpty(dr["DateOfBirth"]),
@@ -1705,18 +2172,22 @@ FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                                     EmploymentTypeID = IntOrZero(dr["EmploymentTypeID"]),
                                     EmploymentStatusID = IntOrZero(dr["EmploymentStatusID"]),
                                     WorkforceSegmentID = IntOrZero(dr["WorkforceSegmentID"]),
+                                    WorkArrangementID = IntOrZero(dr["WorkArrangementID"]),
+                                    AttendanceMethodID = IntOrZero(dr["AttendanceMethodID"]),
                                     LegalEntityID = IntOrZero(dr["LegalEntityID"]),
                                     BusinessUnitID = IntOrZero(dr["BusinessUnitID"]),
                                     SalesTeamID = IntOrZero(dr["SalesTeamID"]),
                                     CostCenterID = IntOrZero(dr["CostCenterID"]),
                                     RegionID = IntOrZero(dr["RegionID"]),
                                     LocationID = IntOrZero(dr["LocationID"]),
+                                    DealForBranchID = IntOrZero(dr["DealForBranchID"]),
+                                    SecondaryLocationID = IntOrZero(dr["SecondaryLocationID"]),
                                     JobID = IntOrZero(dr["JobID"]),
-                                    WorkerLocationID = IntOrZero(dr["WorkerLocationID"]),
                                     CityID = IntOrZero(dr["CityID"]),
                                     ProvinceID = IntOrZero(dr["ProvinceID"]),
-                                    SalesGroupID = IntOrZero(dr["SalesGroupID"]),
                                     GradeID = IntOrZero(dr["GradeID"]),
+                                    DesignationID = IntOrZero(dr["DesignationID"]),
+                                    PrivilegeTier = StrOrEmpty(dr["PrivilegeTier"]),
                                     ExtensionID = IntOrZero(dr["ExtensionID"]),
                                     Domicile = StrOrEmpty(dr["Domicile"]),
                                     BloodGroupID = IntOrZero(dr["BloodGroupID"]),
@@ -1731,6 +2202,7 @@ FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
                                     ProbationEndDate = DateOrEmpty(dr["ProbationEndDate"]),
                                     ConfirmationDate = DateOrEmpty(dr["ConfirmationDate"]),
                                     BasicSalary = StrOrEmpty(dr["BasicSalary"]),
+                                    ConvenienceAllowance = StrOrEmpty(dr["ConvenienceAllowance"]),
                                     Status = dr["Status"].ToString() ?? "Active",
                                     PhotoPath = StrOrEmpty(dr["PhotoPath"])
                                 };
@@ -1740,6 +2212,7 @@ FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
 
                     ContactRecords = LoadEmployeeContacts(conn, employeeID);
                     AddressRecords = LoadEmployeeAddresses(conn, employeeID);
+                    IdentificationRecords = LoadEmployeeIdentifications(conn, employeeID);
                     FamilyRecords = LoadEmployeeFamilyMembers(conn, employeeID);
                     BankRecords = LoadEmployeeBanks(conn, employeeID);
                     EducationRecords = LoadEmployeeEducation(conn, employeeID);
@@ -1770,20 +2243,23 @@ FROM tblEmployee WHERE EmployeeID = @EmployeeID;", conn))
 UPDATE tblEmployee SET
     EmployeeCode=@EmployeeCode, FirstName=@FirstName, LastName=@LastName,
     FathersHusbandsName=@FathersHusbandsName, DisplayName=@DisplayName, NationalIDNumber=@NationalIDNumber,
+    BiometricID=@BiometricID,
     Gender=@Gender, GenderID=@GenderID, DateOfBirth=@DateOfBirth, MaritalStatus=@MaritalStatus,
     DepartmentID=@DepartmentID, DivisionID=@DivisionID, NationalityID=@NationalityID,
     ReligionID=@ReligionID, LanguageID=@LanguageID, WorkerCategoryID=@WorkerCategoryID,
     EmploymentTypeID=@EmploymentTypeID, EmploymentStatusID=@EmploymentStatusID,
-    WorkforceSegmentID=@WorkforceSegmentID, LegalEntityID=@LegalEntityID, BusinessUnitID=@BusinessUnitID,
+    WorkforceSegmentID=@WorkforceSegmentID, WorkArrangementID=@WorkArrangementID, AttendanceMethodID=@AttendanceMethodID, LegalEntityID=@LegalEntityID, BusinessUnitID=@BusinessUnitID,
     SalesTeamID=@SalesTeamID, CostCenterID=@CostCenterID, RegionID=@RegionID, LocationID=@LocationID,
-    JobID=@JobID, WorkerLocationID=@WorkerLocationID, CityID=@CityID, ProvinceID=@ProvinceID,
-    SalesGroupID=@SalesGroupID, GradeID=@GradeID, ExtensionID=@ExtensionID, Domicile=@Domicile,
+    DealForBranchID=@DealForBranchID, SecondaryLocationID=@SecondaryLocationID,
+    JobID=@JobID, CityID=@CityID, ProvinceID=@ProvinceID,
+    GradeID=@GradeID, DesignationID=@DesignationID, PrivilegeTier=@PrivilegeTier,
+    ExtensionID=@ExtensionID, Domicile=@Domicile,
     BloodGroupID=@BloodGroupID, BenefitEntitlementID=@BenefitEntitlementID, UserID=@UserID,
     TemporaryResponsibleEmployeeID=@TemporaryResponsibleEmployeeID,
     PermanentResponsibleEmployeeID=@PermanentResponsibleEmployeeID,
     Designation=@Designation, DateOfJoining=@DateOfJoining, EmploymentStartDate=@EmploymentStartDate,
     ProbationPeriodDays=@ProbationPeriodDays, ProbationEndDate=@ProbationEndDate,
-    ConfirmationDate=@ConfirmationDate, BasicSalary=@BasicSalary, Status=@Status, PhotoPath=@PhotoPath,
+    ConfirmationDate=@ConfirmationDate, BasicSalary=@BasicSalary, ConvenienceAllowance=@ConvenienceAllowance, Status=@Status, PhotoPath=@PhotoPath,
     ModifiedOn=GETDATE(), ModifiedByUserID=@ModifiedByUserID
 WHERE EmployeeID=@EmployeeID;", conn, tx))
                 {
@@ -1797,25 +2273,25 @@ WHERE EmployeeID=@EmployeeID;", conn, tx))
 
             using (var ins = new SqlCommand(@"
 INSERT INTO tblEmployee
-    (EmployeeCode, FirstName, LastName, FathersHusbandsName, DisplayName, NationalIDNumber,
+    (EmployeeCode, FirstName, LastName, FathersHusbandsName, DisplayName, NationalIDNumber, BiometricID,
      Gender, GenderID, DateOfBirth, MaritalStatus, DepartmentID, DivisionID,
      NationalityID, ReligionID, LanguageID, WorkerCategoryID, EmploymentTypeID, EmploymentStatusID,
-     WorkforceSegmentID, LegalEntityID, BusinessUnitID, SalesTeamID, CostCenterID,
-     RegionID, LocationID, JobID, WorkerLocationID, CityID, ProvinceID, SalesGroupID, GradeID,
-     ExtensionID, Domicile, BloodGroupID, BenefitEntitlementID, UserID,
+     WorkforceSegmentID, WorkArrangementID, AttendanceMethodID, LegalEntityID, BusinessUnitID, SalesTeamID, CostCenterID,
+     RegionID, LocationID, DealForBranchID, SecondaryLocationID, JobID, CityID, ProvinceID, GradeID,
+     DesignationID, PrivilegeTier, ExtensionID, Domicile, BloodGroupID, BenefitEntitlementID, UserID,
      TemporaryResponsibleEmployeeID, PermanentResponsibleEmployeeID,
      Designation, DateOfJoining, EmploymentStartDate, ProbationPeriodDays, ProbationEndDate,
-     ConfirmationDate, BasicSalary, Status, PhotoPath, CreatedOn, CreatedByUserID)
+     ConfirmationDate, BasicSalary, ConvenienceAllowance, Status, PhotoPath, CreatedOn, CreatedByUserID)
 VALUES
-    (@EmployeeCode, @FirstName, @LastName, @FathersHusbandsName, @DisplayName, @NationalIDNumber,
+    (@EmployeeCode, @FirstName, @LastName, @FathersHusbandsName, @DisplayName, @NationalIDNumber, @BiometricID,
      @Gender, @GenderID, @DateOfBirth, @MaritalStatus, @DepartmentID, @DivisionID,
      @NationalityID, @ReligionID, @LanguageID, @WorkerCategoryID, @EmploymentTypeID, @EmploymentStatusID,
-     @WorkforceSegmentID, @LegalEntityID, @BusinessUnitID, @SalesTeamID, @CostCenterID,
-     @RegionID, @LocationID, @JobID, @WorkerLocationID, @CityID, @ProvinceID, @SalesGroupID, @GradeID,
-     @ExtensionID, @Domicile, @BloodGroupID, @BenefitEntitlementID, @UserID,
+     @WorkforceSegmentID, @WorkArrangementID, @AttendanceMethodID, @LegalEntityID, @BusinessUnitID, @SalesTeamID, @CostCenterID,
+     @RegionID, @LocationID, @DealForBranchID, @SecondaryLocationID, @JobID, @CityID, @ProvinceID, @GradeID,
+     @DesignationID, @PrivilegeTier, @ExtensionID, @Domicile, @BloodGroupID, @BenefitEntitlementID, @UserID,
      @TemporaryResponsibleEmployeeID, @PermanentResponsibleEmployeeID,
      @Designation, @DateOfJoining, @EmploymentStartDate, @ProbationPeriodDays, @ProbationEndDate,
-     @ConfirmationDate, @BasicSalary, @Status, @PhotoPath, GETDATE(), @CreatedByUserID);
+     @ConfirmationDate, @BasicSalary, @ConvenienceAllowance, @Status, @PhotoPath, GETDATE(), @CreatedByUserID);
 SELECT CAST(SCOPE_IDENTITY() AS INT);", conn, tx))
             {
                 AddEmployeeParams(ins, e);
@@ -1893,6 +2369,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);", conn, tx))
             cmd.Parameters.AddWithValue("@FathersHusbandsName", Str(e.FathersHusbandsName));
             cmd.Parameters.AddWithValue("@DisplayName", Str(e.DisplayName));
             cmd.Parameters.AddWithValue("@NationalIDNumber", Str(e.NationalIDNumber));
+            cmd.Parameters.AddWithValue("@BiometricID", ParseIntParam(e.BiometricID));
             cmd.Parameters.AddWithValue("@Gender", Str(e.Gender));
             cmd.Parameters.AddWithValue("@GenderID", Fk(e.GenderID));
             cmd.Parameters.AddWithValue("@DateOfBirth", ParseDateParam(e.DateOfBirth));
@@ -1906,18 +2383,22 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);", conn, tx))
             cmd.Parameters.AddWithValue("@EmploymentTypeID", Fk(e.EmploymentTypeID));
             cmd.Parameters.AddWithValue("@EmploymentStatusID", Fk(e.EmploymentStatusID));
             cmd.Parameters.AddWithValue("@WorkforceSegmentID", Fk(e.WorkforceSegmentID));
+            cmd.Parameters.AddWithValue("@WorkArrangementID", Fk(e.WorkArrangementID));
+            cmd.Parameters.AddWithValue("@AttendanceMethodID", Fk(e.AttendanceMethodID));
             cmd.Parameters.AddWithValue("@LegalEntityID", Fk(e.LegalEntityID));
             cmd.Parameters.AddWithValue("@BusinessUnitID", Fk(e.BusinessUnitID));
             cmd.Parameters.AddWithValue("@SalesTeamID", Fk(e.SalesTeamID));
             cmd.Parameters.AddWithValue("@CostCenterID", Fk(e.CostCenterID));
             cmd.Parameters.AddWithValue("@RegionID", Fk(e.RegionID));
             cmd.Parameters.AddWithValue("@LocationID", Fk(e.LocationID));
+            cmd.Parameters.AddWithValue("@DealForBranchID", Fk(e.DealForBranchID));
+            cmd.Parameters.AddWithValue("@SecondaryLocationID", Fk(e.SecondaryLocationID));
             cmd.Parameters.AddWithValue("@JobID", Fk(e.JobID));
-            cmd.Parameters.AddWithValue("@WorkerLocationID", Fk(e.WorkerLocationID));
             cmd.Parameters.AddWithValue("@CityID", Fk(e.CityID));
             cmd.Parameters.AddWithValue("@ProvinceID", Fk(e.ProvinceID));
-            cmd.Parameters.AddWithValue("@SalesGroupID", Fk(e.SalesGroupID));
             cmd.Parameters.AddWithValue("@GradeID", Fk(e.GradeID));
+            cmd.Parameters.AddWithValue("@DesignationID", Fk(e.DesignationID));
+            cmd.Parameters.AddWithValue("@PrivilegeTier", Str(e.PrivilegeTier));
             cmd.Parameters.AddWithValue("@ExtensionID", Fk(e.ExtensionID));
             cmd.Parameters.AddWithValue("@Domicile", Str(e.Domicile));
             cmd.Parameters.AddWithValue("@BloodGroupID", Fk(e.BloodGroupID));
@@ -1932,6 +2413,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);", conn, tx))
             cmd.Parameters.AddWithValue("@ProbationEndDate", ParseDateParam(e.ProbationEndDate));
             cmd.Parameters.AddWithValue("@ConfirmationDate", ParseDateParam(e.ConfirmationDate));
             cmd.Parameters.AddWithValue("@BasicSalary", decimal.Parse(e.BasicSalary));
+            cmd.Parameters.AddWithValue("@ConvenienceAllowance", ParseDecimalParam(e.ConvenienceAllowance));
             cmd.Parameters.AddWithValue("@Status", e.Status);
             cmd.Parameters.AddWithValue("@PhotoPath",
                 string.IsNullOrWhiteSpace(e.PhotoPath) ? (object)DBNull.Value : e.PhotoPath.Trim());
@@ -2132,6 +2614,60 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);", conn, tx))
                         insCmd.Parameters.AddWithValue("@IsPrimary", address.IsPrimary);
                         if (hasSortOrder) insCmd.Parameters.AddWithValue("@SortOrder", sortOrder);
                         if (hasCreatedBy) AuditHelper.AddCreatedBy(insCmd, Auth.CurrentUserId);
+                        insCmd.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        private void SyncEmployeeIdentifications(SqlConnection conn, SqlTransaction tx, int employeeID, List<EmployeeIdentificationInput> records)
+        {
+            const string table = "tblEmployeeIdentification";
+            var rows = records.Where(r =>
+                !string.IsNullOrWhiteSpace(r.DocumentType) && !string.IsNullOrWhiteSpace(r.RegistrationNo)).ToList();
+            DeleteChildRowsNotInList(conn, tx, table, "EmployeeIdentificationID", employeeID, rows.Select(r => r.EmployeeIdentificationID));
+
+            int sortOrder = 0;
+            foreach (var row in rows)
+            {
+                sortOrder++;
+                if (row.EmployeeIdentificationID > 0)
+                {
+                    using (var upd = new SqlCommand(@"
+UPDATE tblEmployeeIdentification SET
+    DocumentType=@DocumentType, RegistrationNo=@RegistrationNo, IssueDate=@IssueDate, ExpiryDate=@ExpiryDate,
+    BlacklistComment=@BlacklistComment, SortOrder=@SortOrder, ModifiedOn=GETDATE()
+WHERE EmployeeIdentificationID=@EmployeeIdentificationID AND EmployeeID=@EmployeeID;", conn, tx))
+                    {
+                        upd.Parameters.AddWithValue("@EmployeeIdentificationID", row.EmployeeIdentificationID);
+                        upd.Parameters.AddWithValue("@EmployeeID", employeeID);
+                        upd.Parameters.AddWithValue("@DocumentType", row.DocumentType.Trim());
+                        upd.Parameters.AddWithValue("@RegistrationNo", row.RegistrationNo.Trim());
+                        upd.Parameters.AddWithValue("@IssueDate", ParseDateParam(row.IssueDate));
+                        upd.Parameters.AddWithValue("@ExpiryDate", ParseDateParam(row.ExpiryDate));
+                        upd.Parameters.AddWithValue("@BlacklistComment",
+                            string.IsNullOrWhiteSpace(row.BlacklistComment) ? (object)DBNull.Value : row.BlacklistComment.Trim());
+                        upd.Parameters.AddWithValue("@SortOrder", sortOrder);
+                        upd.ExecuteNonQuery();
+                    }
+                }
+                else
+                {
+                    using (var insCmd = new SqlCommand(@"
+INSERT INTO tblEmployeeIdentification
+    (EmployeeID, DocumentType, RegistrationNo, IssueDate, ExpiryDate, BlacklistComment, SortOrder, CreatedOn, CreatedByUserID)
+VALUES
+    (@EmployeeID, @DocumentType, @RegistrationNo, @IssueDate, @ExpiryDate, @BlacklistComment, @SortOrder, GETDATE(), @CreatedByUserID);", conn, tx))
+                    {
+                        insCmd.Parameters.AddWithValue("@EmployeeID", employeeID);
+                        insCmd.Parameters.AddWithValue("@DocumentType", row.DocumentType.Trim());
+                        insCmd.Parameters.AddWithValue("@RegistrationNo", row.RegistrationNo.Trim());
+                        insCmd.Parameters.AddWithValue("@IssueDate", ParseDateParam(row.IssueDate));
+                        insCmd.Parameters.AddWithValue("@ExpiryDate", ParseDateParam(row.ExpiryDate));
+                        insCmd.Parameters.AddWithValue("@BlacklistComment",
+                            string.IsNullOrWhiteSpace(row.BlacklistComment) ? (object)DBNull.Value : row.BlacklistComment.Trim());
+                        insCmd.Parameters.AddWithValue("@SortOrder", sortOrder);
+                        AuditHelper.AddCreatedBy(insCmd, Auth.CurrentUserId);
                         insCmd.ExecuteNonQuery();
                     }
                 }
@@ -2486,6 +3022,10 @@ WHERE CertificateID=@CertificateID AND EmployeeID=@EmployeeID;", conn, tx))
 
             DeleteChildRowsNotInList(conn, tx, "tblEmployeeDocument", "EmployeeDocumentID", employeeID, rows.Select(r => r.Item1.EmployeeDocumentID));
 
+            var employeeCode = GetEmployeeCodeById(conn, tx, employeeID);
+            if (string.IsNullOrWhiteSpace(employeeCode))
+                throw new InvalidOperationException("Employee code was not found on Employee Master. Documents are stored in a folder named with the employee code (for example EMP000001).");
+
             int sortOrder = 0;
             foreach (var pair in rows)
             {
@@ -2493,7 +3033,7 @@ WHERE CertificateID=@CertificateID AND EmployeeID=@EmployeeID;", conn, tx))
                 var i = pair.Item2;
                 var docPath = doc.DocumentPath;
                 var originalName = doc.OriginalFileName;
-                var uploaded = SaveDocumentFile(Request.Files["DocFile_" + i], employeeID, i);
+                var uploaded = SaveDocumentFile(Request.Files["DocFile_" + i], employeeCode, doc);
                 if (!string.IsNullOrEmpty(uploaded.Item1))
                 {
                     docPath = uploaded.Item1;
@@ -2569,15 +3109,39 @@ WHERE EmployeeDocumentID=@EmployeeDocumentID AND EmployeeID=@EmployeeID;", conn,
             }
         }
 
-        private Tuple<string, string> SaveDocumentFile(HttpPostedFile file, int employeeId, int rowIndex)
+        private Tuple<string, string> SaveDocumentFile(HttpPostedFile file, string employeeCode, EmployeeDocumentInput doc)
         {
             if (file == null || file.ContentLength == 0) return Tuple.Create<string, string>(null, null);
-            var uploads = Server.MapPath("~/uploads/employee-documents");
-            Directory.CreateDirectory(uploads);
-            var ext = Path.GetExtension(file.FileName);
-            var safeName = employeeId + "_" + rowIndex + "_" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + ext;
-            file.SaveAs(Path.Combine(uploads, safeName));
-            return Tuple.Create("/uploads/employee-documents/" + safeName, file.FileName);
+            var typeName = ResolveDocumentTypeName(doc != null ? doc.DocumentTypeID : 0, doc != null ? doc.DocumentTypeName : "");
+            var storage = new EmployeeDocumentStorage();
+            var saved = storage.SaveUploadedFile(file, employeeCode, typeName);
+            return Tuple.Create(saved, file.FileName);
+        }
+
+        private string GetEmployeeCodeById(SqlConnection conn, SqlTransaction tx, int employeeId)
+        {
+            if (employeeId <= 0) return "";
+            using (var cmd = new SqlCommand(
+                "SELECT TOP 1 EmployeeCode FROM tblEmployee WHERE EmployeeID=@EmployeeID;", conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@EmployeeID", employeeId);
+                var result = cmd.ExecuteScalar();
+                return result == null || result == DBNull.Value ? "" : result.ToString().Trim();
+            }
+        }
+
+        private string ResolveDocumentTypeName(int documentTypeId, string fallback)
+        {
+            if (documentTypeId > 0)
+            {
+                var match = DocumentTypes.Find(t => t.Id == documentTypeId);
+                if (match != null && !string.IsNullOrWhiteSpace(match.Name))
+                    return match.Name;
+                var fromDb = GetLookupName("tblDocumentType", "DocumentTypeID", "DocumentTypeName", documentTypeId);
+                if (!string.IsNullOrWhiteSpace(fromDb))
+                    return fromDb;
+            }
+            return fallback ?? "";
         }
 
         private List<EmployeeContactInput> LoadEmployeeContacts(SqlConnection conn, int employeeID)
@@ -2645,6 +3209,39 @@ FROM tblEmployeeAddress WHERE EmployeeID=@EmployeeID ORDER BY SortOrder, Address
             }
             catch { }
             return addresses;
+        }
+
+        private List<EmployeeIdentificationInput> LoadEmployeeIdentifications(SqlConnection conn, int employeeID)
+        {
+            var records = new List<EmployeeIdentificationInput>();
+            try
+            {
+                using (var cmd = new SqlCommand(@"
+SELECT EmployeeIdentificationID, DocumentType, RegistrationNo, IssueDate, ExpiryDate, BlacklistComment
+FROM tblEmployeeIdentification
+WHERE EmployeeID=@EmployeeID
+ORDER BY SortOrder, EmployeeIdentificationID;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@EmployeeID", employeeID);
+                    using (var dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            records.Add(new EmployeeIdentificationInput
+                            {
+                                EmployeeIdentificationID = IntOrZero(dr["EmployeeIdentificationID"]),
+                                DocumentType = StrOrEmpty(dr["DocumentType"]),
+                                RegistrationNo = StrOrEmpty(dr["RegistrationNo"]),
+                                IssueDate = DateOrEmpty(dr["IssueDate"]),
+                                ExpiryDate = DateOrEmpty(dr["ExpiryDate"]),
+                                BlacklistComment = StrOrEmpty(dr["BlacklistComment"])
+                            });
+                        }
+                    }
+                }
+            }
+            catch { }
+            return records;
         }
 
         private List<EmployeeFamilyMemberInput> LoadEmployeeFamilyMembers(SqlConnection conn, int employeeID)
@@ -2829,7 +3426,7 @@ WHERE d.EmployeeID=@EmployeeID ORDER BY d.SortOrder, d.EmployeeDocumentID;", con
 
         private static void ApplyTenureCalculations(EmployeeInput e)
         {
-            var startText = !string.IsNullOrWhiteSpace(e.EmploymentStartDate) ? e.EmploymentStartDate : e.DateOfJoining;
+            var startText = e.DateOfJoining;
             int days;
             if (string.IsNullOrWhiteSpace(startText) || !int.TryParse(e.ProbationPeriodDays, out days) || days <= 0)
                 return;
@@ -2883,6 +3480,104 @@ WHERE d.EmployeeID=@EmployeeID ORDER BY d.SortOrder, d.EmployeeDocumentID;", con
             v == null || v == DBNull.Value ? "" : Convert.ToDateTime(v).ToString("yyyy-MM-dd");
         private static object NullIfEmpty(string s) =>
             string.IsNullOrWhiteSpace(s) ? (object)DBNull.Value : s.Trim();
+
+        private void EnsureEmployeeLocationExtraColumns()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+IF OBJECT_ID(N'tblEmployee', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'tblEmployee', N'DealForBranchID') IS NULL
+        ALTER TABLE tblEmployee ADD DealForBranchID INT NULL;
+    IF COL_LENGTH(N'tblEmployee', N'SecondaryLocationID') IS NULL
+        ALTER TABLE tblEmployee ADD SecondaryLocationID INT NULL;
+    IF COL_LENGTH(N'tblEmployee', N'WorkArrangementID') IS NULL
+        ALTER TABLE tblEmployee ADD WorkArrangementID INT NULL;
+    IF COL_LENGTH(N'tblEmployee', N'ConvenienceAllowance') IS NULL
+        ALTER TABLE tblEmployee ADD ConvenienceAllowance DECIMAL(18, 2) NULL;
+    IF COL_LENGTH(N'tblEmployee', N'AttendanceMethodID') IS NULL
+        ALTER TABLE tblEmployee ADD AttendanceMethodID INT NULL;
+    IF COL_LENGTH(N'tblEmployee', N'DesignationID') IS NULL
+        ALTER TABLE tblEmployee ADD DesignationID INT NULL;
+    IF COL_LENGTH(N'tblEmployee', N'PrivilegeTier') IS NULL
+        ALTER TABLE tblEmployee ADD PrivilegeTier NVARCHAR(30) NULL;
+END;", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                    DbSchemaHelper.ClearCache();
+                }
+            }
+            catch
+            {
+                // Column ensure is best-effort; save will surface schema errors if needed.
+            }
+        }
+
+        private void EnsureBiometricColumn()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+IF OBJECT_ID(N'tblEmployee', N'U') IS NOT NULL
+   AND COL_LENGTH(N'tblEmployee', N'BiometricID') IS NULL
+    ALTER TABLE tblEmployee ADD BiometricID INT NULL;", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                    DbSchemaHelper.ClearCache();
+                }
+            }
+            catch
+            {
+                // Column ensure is best-effort; save will surface schema errors if needed.
+            }
+        }
+
+        private void EnsureIdentificationTable()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(Conn))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+IF OBJECT_ID(N'dbo.tblEmployeeIdentification', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.tblEmployeeIdentification (
+        EmployeeIdentificationID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        EmployeeID INT NOT NULL,
+        DocumentType NVARCHAR(50) NOT NULL,
+        RegistrationNo NVARCHAR(100) NOT NULL,
+        IssueDate DATE NULL,
+        ExpiryDate DATE NULL,
+        SortOrder INT NOT NULL CONSTRAINT DF_EmpIdent_SortOrder DEFAULT (1),
+        CreatedOn DATETIME NOT NULL CONSTRAINT DF_EmpIdent_CreatedOn DEFAULT (GETDATE()),
+        ModifiedOn DATETIME NULL,
+        CreatedByUserID INT NULL,
+        ModifiedByUserID INT NULL
+    );
+END
+IF COL_LENGTH(N'dbo.tblEmployeeIdentification', N'BlacklistComment') IS NULL
+    ALTER TABLE dbo.tblEmployeeIdentification ADD BlacklistComment NVARCHAR(200) NULL;", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                    DbSchemaHelper.ClearCache();
+                }
+            }
+            catch
+            {
+            }
+        }
+
         private static object ParseDateParam(string value)
         {
             DateTime d;
@@ -2893,6 +3588,13 @@ WHERE d.EmployeeID=@EmployeeID ORDER BY d.SortOrder, d.EmployeeDocumentID;", con
         {
             int n;
             return string.IsNullOrWhiteSpace(value) || !int.TryParse(value, out n) || n < 0
+                ? (object)DBNull.Value : n;
+        }
+
+        private static object ParseDecimalParam(string value)
+        {
+            decimal n;
+            return string.IsNullOrWhiteSpace(value) || !decimal.TryParse(value, out n) || n < 0
                 ? (object)DBNull.Value : n;
         }
     }

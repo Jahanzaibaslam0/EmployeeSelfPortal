@@ -16,7 +16,7 @@
       <tbody>
       <% foreach (var x in Expenses) { %>
       <tr>
-        <td><%= Server.HtmlEncode(x.EmployeeCode) %> – <%= Server.HtmlEncode(x.EmployeeName) %></td>
+        <td><%= Server.HtmlEncode(x.EmployeeCode) %> &ndash; <%= Server.HtmlEncode(x.EmployeeName) %></td>
         <td><%= x.ExpenseDate.HasValue ? x.ExpenseDate.Value.ToString("dd MMM yyyy") : "" %></td>
         <td><%= Server.HtmlEncode(x.LocationName) %></td>
         <td><%= Server.HtmlEncode(x.ExpensePurpose) %></td>
@@ -93,6 +93,6 @@
 </div>
 <script type="application/json" id="expenseCategoryData"><%= CategoriesJson %></script>
 <script type="application/json" id="initialExpenseDetailsData"><%= DetailsJsonInit %></script>
-<script src="/js/expense.js?v=1"></script>
+<script src="/js/expense.js?v=2"></script>
 <% } %>
 </asp:Content>

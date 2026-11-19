@@ -75,7 +75,7 @@
                  title="<%= Server.HtmlEncode(doc.OriginalFileName) %>">
                 <span class="icon">&#128206;</span> Open
               </a>
-              <% } else { %>—<% } %>
+              <% } else { %>&mdash;<% } %>
             </td>
           </tr>
           <% } %>

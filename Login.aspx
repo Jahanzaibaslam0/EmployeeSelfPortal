@@ -3,7 +3,7 @@
 <html lang="en">
 <head runat="server">
     <meta charset="UTF-8" />
-    <title>HRMS – Login</title>
+    <title>Ghazi Workstation &ndash; Login</title>
     <link rel="stylesheet" href="/css/style.css?v=9" />
     <style>
         body { min-height:100vh; display:flex; align-items:center; justify-content:center;
@@ -19,8 +19,8 @@
 <div class="login-card">
     <div class="login-header">
         <img src="/images/gb-logo.png" alt="Ghazi Brothers" style="height:52px;margin-bottom:.75rem;" onerror="this.style.display='none'" />
-        <h1 style="margin:0;color:var(--gb-blue);">HRMS</h1>
-        <p style="color:var(--gb-red);font-weight:600;text-transform:uppercase;font-size:.82rem;">Human Resource Management System</p>
+        <h1 style="margin:0;color:var(--gb-blue);font-size:1.45rem;">Ghazi Workstation</h1>
+        <p style="color:var(--gb-red);font-weight:600;text-transform:uppercase;font-size:.82rem;">Business management platform</p>
     </div>
     <div class="login-body">
         <% if (!string.IsNullOrEmpty(ErrorMessage)) { %>
@@ -36,6 +36,10 @@
         </div>
         <asp:Button ID="btnLogin" runat="server" Text="Sign In" CssClass="btn btn-primary"
                     style="width:100%;margin-top:.5rem;" OnClick="btnLogin_Click" />
+        <p style="margin-top:1rem;text-align:center;"><a href="/ForgotPassword.aspx">Forgot password?</a></p>
+        <p class="text-muted" style="margin-top:.5rem;font-size:.78rem;text-align:center;">
+            Repeated failed sign-ins are limited. Password recovery does not use email; it runs on this server.
+        </p>
     </div>
 </div>
 </form>

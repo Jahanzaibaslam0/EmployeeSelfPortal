@@ -27,6 +27,10 @@ namespace HRMS
         public string Initials { get; set; } = "?";
         public string QrPayload { get; set; } = "";
         public string Status { get; set; } = "";
+
+        public string QrStamp => EmployeeCardPage.QrStamp(this);
+        public string QrPngUrl(int scale) => EmployeeCardPage.QrImageUrl(EmployeeID, QrStamp, scale);
+        public string QrDownloadUrl => EmployeeCardPage.QrImageUrl(EmployeeID, QrStamp, 8, "Download");
     }
 
     public class EmployeeCardPickerItem
@@ -35,6 +39,25 @@ namespace HRMS
         public string EmployeeCode { get; set; } = "";
         public string FullName { get; set; } = "";
         public string DepartmentName { get; set; } = "";
+        public string CompanyName { get; set; } = "";
+        public string OfficeLocation { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Phone { get; set; } = "";
+
+        public string QrStamp => EmployeeCardPage.QrStamp(ToCard());
+        public string QrPngUrl => EmployeeCardPage.QrImageUrl(EmployeeID, QrStamp, 3);
+
+        public EmployeeCardData ToCard() => new EmployeeCardData
+        {
+            EmployeeID = EmployeeID,
+            EmployeeCode = EmployeeCode,
+            FullName = FullName,
+            DepartmentName = DepartmentName,
+            CompanyName = CompanyName,
+            OfficeLocation = OfficeLocation,
+            Email = Email,
+            Phone = Phone
+        };
     }
 
     public partial class EmployeeCardPage : AppBasePage
@@ -62,11 +85,18 @@ namespace HRMS
 
             CanBrowseCards = _profileAccess.HasFullEmployeeMasterAccess();
             var id = QueryInt("id");
+            var handler = (Request.QueryString["handler"] ?? "").Trim();
 
             if (id.HasValue && id.Value > 0)
             {
                 if (!_profileAccess.CanViewEmployee(id.Value))
                 {
+                    if (IsImageHandler(handler))
+                    {
+                        Response.StatusCode = 403;
+                        Response.End();
+                        return;
+                    }
                     SetAlert("You do not have permission to view this employee card.", "error");
                     Response.Redirect("~/UserProfile.aspx");
                     return;
@@ -74,7 +104,22 @@ namespace HRMS
 
                 Card = LoadCard(id.Value);
                 if (Card == null)
+                {
+                    if (IsImageHandler(handler))
+                    {
+                        Response.StatusCode = 404;
+                        Response.End();
+                        return;
+                    }
                     ErrorMessage = "Employee record not found.";
+                    return;
+                }
+
+                if (IsImageHandler(handler))
+                {
+                    WriteQrPng(handler);
+                    return;
+                }
                 return;
             }
 
@@ -105,10 +150,42 @@ namespace HRMS
             using (var conn = new SqlConnection(Conn))
             using (var cmd = new SqlCommand(@"
             SELECT e.EmployeeID, e.EmployeeCode,
-                   LTRIM(RTRIM(ISNULL(e.FirstName,'') + ' ' + ISNULL(e.LastName,''))) AS FullName,
-                   ISNULL(d.DepartmentName, '') AS DepartmentName
+                   LTRIM(RTRIM(ISNULL(NULLIF(LTRIM(RTRIM(e.DisplayName)), ''),
+                       ISNULL(e.FirstName,'') + ' ' + ISNULL(e.LastName,'')))) AS FullName,
+                   ISNULL(d.DepartmentName, '') AS DepartmentName,
+                   ISNULL(le.LegalEntityName, '') AS CompanyName,
+                   ISNULL(loc.LocationName, ISNULL(city.CityName, '')) AS OfficeLocation,
+                   ISNULL(cEmail.ContactValue, ISNULL(e.OfficialEmail, ISNULL(e.Email, ''))) AS Email,
+                   ISNULL(
+                       NULLIF(LTRIM(RTRIM(cCell.ContactValue)), ''),
+                       ISNULL(NULLIF(LTRIM(RTRIM(e.OfficialMobile)), ''),
+                              ISNULL(NULLIF(LTRIM(RTRIM(e.PersonalMobile)), ''),
+                                     ISNULL(e.Phone, '')))) AS Phone
             FROM tblEmployee e
             LEFT JOIN tblDepartment d ON d.DepartmentID = e.DepartmentID
+            LEFT JOIN tblLegalEntity le ON le.LegalEntityID = e.LegalEntityID
+            LEFT JOIN tblLocation loc ON loc.LocationID = e.LocationID
+            LEFT JOIN tblCity city ON city.CityID = e.CityID
+            OUTER APPLY (
+                SELECT TOP 1 ContactValue
+                FROM tblEmployeeContact
+                WHERE EmployeeID = e.EmployeeID AND ContactType = 'OfficialEmail'
+                  AND NULLIF(LTRIM(RTRIM(ContactValue)), '') IS NOT NULL
+                ORDER BY IsPrimary DESC, ContactID DESC
+            ) cEmail
+            OUTER APPLY (
+                SELECT TOP 1 ContactValue
+                FROM tblEmployeeContact
+                WHERE EmployeeID = e.EmployeeID
+                  AND ContactType IN ('OfficialMobile', 'PersonalMobile', 'WhatsApp')
+                  AND NULLIF(LTRIM(RTRIM(ContactValue)), '') IS NOT NULL
+                ORDER BY CASE
+                    WHEN ContactType = 'OfficialMobile' AND IsPrimary = 1 THEN 0
+                    WHEN ContactType = 'OfficialMobile' THEN 1
+                    WHEN IsPrimary = 1 THEN 2
+                    WHEN ContactType = 'PersonalMobile' THEN 3
+                    ELSE 4 END, ContactID DESC
+            ) cCell
             WHERE e.Status = 'Active'
             ORDER BY e.EmployeeCode;", conn))
             {
@@ -122,7 +199,11 @@ namespace HRMS
                             EmployeeID = Convert.ToInt32(dr["EmployeeID"]),
                             EmployeeCode = dr["EmployeeCode"].ToString() ?? "",
                             FullName = dr["FullName"].ToString() ?? "",
-                            DepartmentName = dr["DepartmentName"].ToString() ?? ""
+                            DepartmentName = dr["DepartmentName"].ToString() ?? "",
+                            CompanyName = dr["CompanyName"].ToString() ?? "",
+                            OfficeLocation = dr["OfficeLocation"].ToString() ?? "",
+                            Email = dr["Email"].ToString() ?? "",
+                            Phone = dr["Phone"].ToString() ?? ""
                         });
                     }
                 }
@@ -222,7 +303,7 @@ namespace HRMS
 
                     var employeeCode = dr["EmployeeCode"].ToString() ?? "";
 
-                    return new EmployeeCardData
+                    var card = new EmployeeCardData
                     {
                         EmployeeID = employeeId,
                         EmployeeCode = employeeCode,
@@ -240,9 +321,10 @@ namespace HRMS
                         CardTitle = isVisitor ? "Visitor ID Card" : "Employee ID Card",
                         PhotoUrl = photoUrl,
                         Initials = BuildInitials(firstName, lastName),
-                        QrPayload = employeeCode,
                         Status = dr["Status"].ToString() ?? ""
                     };
+                    card.QrPayload = ToQrVCard(card);
+                    return card;
                 }
             }
         }
@@ -297,5 +379,106 @@ namespace HRMS
 
         public string QrPayloadJson
             => Card == null ? "\"\"" : WebFormsJson.Serialize(Card.QrPayload ?? "");
+
+        public string EmployeeCodeJson
+            => Card == null ? "\"\"" : WebFormsJson.Serialize(Card.EmployeeCode ?? "");
+
+        public string ShareTextJson
+            => Card == null ? "\"\"" : WebFormsJson.Serialize(ToPlainText(Card));
+
+        public string ShareTitleJson
+            => Card == null ? "\"\"" : WebFormsJson.Serialize(Card.FullName ?? "Employee");
+
+        public static string QrImageUrl(int employeeId, string stamp, int scale, string handler = "Png")
+            => "/EmployeeCard.aspx?id=" + employeeId
+               + "&handler=" + handler
+               + "&scale=" + scale
+               + "&v=" + (stamp ?? "");
+
+        public static string ToQrVCard(EmployeeCardData c)
+        {
+            if (c == null) return "";
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("BEGIN:VCARD");
+            sb.AppendLine("VERSION:3.0");
+            sb.AppendLine("UID:urn:hrms:employee:" + c.EmployeeID);
+            sb.AppendLine("FN:" + EscapeVcf(c.FullName));
+            sb.AppendLine("N:" + EscapeVcf(c.FullName) + ";;;;");
+            if (!string.IsNullOrWhiteSpace(c.EmployeeCode))
+                sb.AppendLine("NICKNAME:" + EscapeVcf(c.EmployeeCode));
+            if (!string.IsNullOrWhiteSpace(c.CompanyName))
+                sb.AppendLine("ORG:" + EscapeVcf(c.CompanyName));
+            if (!string.IsNullOrWhiteSpace(c.Designation))
+                sb.AppendLine("TITLE:" + EscapeVcf(c.Designation));
+            if (!string.IsNullOrWhiteSpace(c.Phone))
+                sb.AppendLine("TEL;TYPE=CELL:" + EscapeVcf(c.Phone));
+            if (!string.IsNullOrWhiteSpace(c.Email))
+                sb.AppendLine("EMAIL:" + EscapeVcf(c.Email));
+            if (!string.IsNullOrWhiteSpace(c.OfficeLocation))
+                sb.AppendLine("ADR;TYPE=WORK:;;" + EscapeVcf(c.OfficeLocation) + ";;;;");
+            if (!string.IsNullOrWhiteSpace(c.DepartmentName))
+                sb.AppendLine("NOTE:" + EscapeVcf("HRMS " + c.EmployeeCode + " / " + c.DepartmentName));
+            else
+                sb.AppendLine("NOTE:" + EscapeVcf("HRMS " + c.EmployeeCode));
+            sb.AppendLine("END:VCARD");
+            return sb.ToString().Replace("\r\n", "\n");
+        }
+
+        public static string QrStamp(EmployeeCardData c)
+        {
+            var payload = ToQrVCard(c);
+            unchecked
+            {
+                uint hash = 2166136261;
+                foreach (var ch in payload)
+                {
+                    hash ^= ch;
+                    hash *= 16777619;
+                }
+                return hash.ToString("x8") + payload.Length.ToString();
+            }
+        }
+
+        public static string ToPlainText(EmployeeCardData c)
+        {
+            if (c == null) return "";
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine(c.FullName);
+            if (!string.IsNullOrWhiteSpace(c.EmployeeCode)) sb.AppendLine("Employee ID: " + c.EmployeeCode);
+            if (!string.IsNullOrWhiteSpace(c.Designation)) sb.AppendLine("Designation: " + c.Designation);
+            if (!string.IsNullOrWhiteSpace(c.CompanyName)) sb.AppendLine("Company: " + c.CompanyName);
+            if (!string.IsNullOrWhiteSpace(c.DepartmentName)) sb.AppendLine("Department: " + c.DepartmentName);
+            if (!string.IsNullOrWhiteSpace(c.Phone)) sb.AppendLine("Mobile: " + c.Phone);
+            if (!string.IsNullOrWhiteSpace(c.Email)) sb.AppendLine("Email: " + c.Email);
+            if (!string.IsNullOrWhiteSpace(c.OfficeLocation)) sb.AppendLine("Address: " + c.OfficeLocation);
+            return sb.ToString().Trim();
+        }
+
+        private static string EscapeVcf(string value)
+            => (value ?? "").Replace("\\", "\\\\").Replace(",", "\\,").Replace(";", "\\;").Replace("\n", "\\n");
+
+        private static bool IsImageHandler(string handler) =>
+            string.Equals(handler, "Png", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(handler, "Download", StringComparison.OrdinalIgnoreCase);
+
+        private void WriteQrPng(string handler)
+        {
+            var scale = 4;
+            int.TryParse(Request.QueryString["scale"], out scale);
+            if (scale < 2) scale = 2;
+            if (scale > 12) scale = 12;
+            var bytes = QrCodeEncoder.RenderPng(ToQrVCard(Card), scale);
+            Response.Clear();
+            Response.ContentType = "image/png";
+            Response.Cache.SetCacheability(System.Web.HttpCacheability.NoCache);
+            Response.Cache.SetNoStore();
+            if (string.Equals(handler, "Download", StringComparison.OrdinalIgnoreCase))
+            {
+                var name = "EmployeeQR_" + (Card.EmployeeCode ?? Card.EmployeeID.ToString()) + ".png";
+                Response.AddHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");
+            }
+            Response.BinaryWrite(bytes);
+            Response.End();
+        }
     }
 }

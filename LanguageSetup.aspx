@@ -30,7 +30,7 @@
         <label>Native Name</label>
         <input type="text" name="nativeName" class="form-control"
                value="<%= Server.HtmlEncode(Input.NativeName) %>" maxlength="100"
-               placeholder="e.g. English, اردو" />
+               placeholder="e.g. English, &#1575;&#1585;&#1583;&#1608;" />
       </div>
       <div class="form-group">
         <label>Region</label>
@@ -72,7 +72,7 @@
     <div style="display:flex;gap:.5rem;align-items:center;">
       <a href="<%= ResolveUrl("~/LanguageSetup.aspx") %>?handler=DownloadExcel" class="btn btn-secondary">Download Excel</a>
       <input type="text" id="txtSearch" class="form-control" style="width:220px"
-             placeholder="Search…" onkeyup="searchTable(this.value)" />
+             placeholder="Search&hellip;" onkeyup="searchTable(this.value)" />
     </div>
   </div>
   <div class="card-body">

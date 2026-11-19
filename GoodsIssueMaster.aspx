@@ -53,7 +53,7 @@
     </div>
     <div class="table-responsive" style="margin-top:1rem;">
       <table class="data-table" id="giLineTable">
-        <thead><tr><th>Product</th><th>Description</th><th>Ordered</th><th>Issued</th><th>On Hand</th><th>Issue Now</th></tr></thead>
+        <thead><tr><th>Product</th><th>Description</th><th>Batch</th><th>Ordered</th><th>Issued</th><th>On Hand</th><th>Issue Now</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -72,10 +72,22 @@
 function buildGIRow(d) {
   d = d || {};
   var tr = document.createElement('tr');
+  var batches = d.batches || d.Batches || [];
+  var selected = d.productBatchID || d.ProductBatchID || 0;
+  var requires = d.requiresBatch || d.RequiresBatch;
+  var opts = '<option value="0">' + (requires ? '-- Select batch --' : '-- No batch --') + '</option>';
+  batches.forEach(function (b) {
+    var id = b.productBatchID || b.ProductBatchID;
+    var label = b.label || b.Label || id;
+    var usable = b.usable === true || b.Usable === true;
+    opts += '<option value="' + id + '"' + (String(id) === String(selected) ? ' selected' : '') + (usable ? '' : ' disabled') + '>' + label + '</option>';
+  });
   tr.innerHTML = '<td><input type="hidden" class="so-item-id" value="' + (d.salesOrderItemID || d.SalesOrderItemID || '') + '" />' +
     '<input type="hidden" class="product-id" value="' + (d.productID || d.ProductID || '') + '" />' +
+    '<input type="hidden" class="requires-batch" value="' + (requires ? '1' : '0') + '" />' +
     '<input type="text" class="form-control readonly-field product-code" readonly value="' + (d.productCode || d.ProductCode || '') + '" /></td>' +
     '<td><input type="text" class="form-control readonly-field product-desc" readonly value="' + (d.productDescription || d.ProductDescription || '') + '" /></td>' +
+    '<td><select class="form-control product-batch">' + opts + '</select></td>' +
     '<td><input type="text" class="form-control readonly-field" readonly value="' + (d.orderedQty || d.OrderedQty || '') + '" /></td>' +
     '<td><input type="text" class="form-control readonly-field" readonly value="' + (d.alreadyIssued || d.AlreadyIssued || '') + '" /></td>' +
     '<td><input type="text" class="form-control readonly-field stock-on-hand" readonly value="' + (d.stockOnHand || d.StockOnHand || '') + '" /></td>' +
@@ -89,10 +101,18 @@ function prepareGI() {
       productID: parseInt(tr.querySelector('.product-id').value, 10) || 0,
       productCode: tr.querySelector('.product-code').value,
       productDescription: tr.querySelector('.product-desc').value,
-      issueQty: tr.querySelector('.issue-qty').value
+      issueQty: tr.querySelector('.issue-qty').value,
+      productBatchID: parseInt((tr.querySelector('.product-batch') || {}).value || '0', 10) || 0
     };
   }).filter(function (l) { return parseFloat(l.issueQty) > 0; });
   if (!lines.length) { alert('Enter issue quantity for at least one line.'); return false; }
+  var missing = Array.from(document.querySelectorAll('#giLineTable tbody tr')).some(function (tr) {
+    var qty = parseFloat(tr.querySelector('.issue-qty').value) || 0;
+    var req = tr.querySelector('.requires-batch') && tr.querySelector('.requires-batch').value === '1';
+    var batch = parseInt((tr.querySelector('.product-batch') || {}).value || '0', 10) || 0;
+    return qty > 0 && req && batch <= 0;
+  });
+  if (missing) { alert('Select a usable batch for each product that is batch-tracked. Expired and blocked batches cannot be issued.'); return false; }
   document.getElementById('LinesJson').value = JSON.stringify(lines);
   return true;
 }

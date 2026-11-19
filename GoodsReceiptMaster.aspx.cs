@@ -33,6 +33,9 @@ namespace HRMS
         public string AlreadyReceived { get; set; } = "";
         public string ReceiveQty { get; set; } = "";
         public string UnitCost { get; set; } = "";
+        public int ProductBatchID { get; set; }
+        public bool RequiresBatch { get; set; }
+        public List<ProductBatchOption> Batches { get; set; } = new List<ProductBatchOption>();
     }
 
     public class PoLineForReceipt
@@ -50,6 +53,7 @@ namespace HRMS
     public partial class GoodsReceiptMasterPage : AppBasePage
     {
         private readonly InventoryService _inventory = new InventoryService();
+        private readonly ProductBatchService _batches = new ProductBatchService();
 
         public string PageTitle => "Goods Receipt";
         public List<GoodsReceiptListItem> Receipts { get; set; } = new List<GoodsReceiptListItem>();
@@ -188,7 +192,7 @@ UPDATE tblPurchaseOrderItem SET ReceivedQty = ReceivedQty + @Qty WHERE PurchaseO
                             }
 
                             _inventory.ReceiveStock(conn, tx, line.ProductID, recvQty, unitCost, "GRN",
-                                SelectedPoId, poItemId, grId, "GR " + grCode);
+                                SelectedPoId, poItemId, grId, "GR " + grCode, line.ProductBatchID);
                         }
 
                         UpdatePoStatusIfComplete(conn, tx, SelectedPoId);
@@ -320,6 +324,7 @@ ORDER BY po.PurchaseOrderID DESC;", conn))
             Lines.Clear();
             foreach (var line in FetchPoLines(poId))
             {
+                var batchOpts = _batches.ListOptionsForProduct(line.ProductID, issue: false);
                 Lines.Add(new ReceiptLineInput
                 {
                     PurchaseOrderItemID = line.PurchaseOrderItemID,
@@ -329,7 +334,9 @@ ORDER BY po.PurchaseOrderID DESC;", conn))
                     OrderedQty = line.OrderedQty.ToString("0.####"),
                     AlreadyReceived = line.ReceivedQty.ToString("0.####"),
                     ReceiveQty = line.PendingQty.ToString("0.####"),
-                    UnitCost = line.UnitPrice.ToString("0.####")
+                    UnitCost = line.UnitPrice.ToString("0.####"),
+                    RequiresBatch = batchOpts.Count > 0,
+                    Batches = batchOpts
                 });
             }
             using (var conn = new SqlConnection(Conn))
