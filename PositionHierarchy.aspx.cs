@@ -81,7 +81,8 @@ SELECT p.PositionID, p.PositionNo, ISNULL(p.Description, '') AS Description,
            FROM tblPositionWorkerAssignment a
            INNER JOIN tblEmployee e ON e.EmployeeID = a.EmployeeID
            WHERE a.PositionID = p.PositionID
-           ORDER BY a.SortOrder, a.PositionWorkerAssignmentID
+             AND a.AssignmentEndDate IS NULL
+           ORDER BY a.AssignmentStartDate DESC, a.PositionWorkerAssignmentID DESC
            FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS AssignedWorkers
 FROM tblPosition p
 LEFT JOIN tblPosition rp ON rp.PositionID = p.ReportsToPositionID

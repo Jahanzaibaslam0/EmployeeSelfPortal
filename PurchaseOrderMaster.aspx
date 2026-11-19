@@ -29,7 +29,7 @@
   <div class="card-header po-list-header">
     <h2>Purchase Order List</h2>
     <div class="right-controls">
-      <input type="text" id="txtSearch" class="form-control" style="width:260px" placeholder="Search PO / vendor / status…" onkeyup="searchPOTable(this.value)" />
+      <input type="text" id="txtSearch" class="form-control" style="width:260px" placeholder="Search PO / vendor / status&hellip;" onkeyup="searchPOTable(this.value)" />
       <a href="/PurchaseOrderMaster.aspx?newPO=1" class="btn btn-primary">+ New Purchase Order</a>
     </div>
   </div>

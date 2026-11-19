@@ -54,11 +54,20 @@ namespace HRMS
         public bool ShowForm { get; set; }
         public string AlertMessage { get; set; } = "";
         public string AlertType { get; set; } = "success";
+        public List<DisciplineFindingItem> PerformanceFindings { get; set; } = new List<DisciplineFindingItem>();
+        public List<DisciplineCaseItem> RelatedDisciplineCases { get; set; } = new List<DisciplineCaseItem>();
+        public bool CanViewDisciplineFindings { get; private set; }
+        public bool CanAddDisciplineFindings { get; private set; }
+
+        private readonly DisciplineService _discipline = new DisciplineService();
 
         protected void Page_Load(object sender, EventArgs e)
         {
             var master = Page.Master as SiteMaster;
             if (master != null) master.PageTitleText = PageTitle;
+
+            CanViewDisciplineFindings = _discipline.CanViewPerformanceFindings();
+            CanAddDisciplineFindings = _discipline.CanWrite();
 
             if (IsPostBack)
             {
@@ -66,6 +75,11 @@ namespace HRMS
                 if (string.Equals(handler, "Delete", StringComparison.OrdinalIgnoreCase))
                 {
                     OnPostDelete(FormInt("deleteId"));
+                    return;
+                }
+                if (string.Equals(handler, "AddFinding", StringComparison.OrdinalIgnoreCase))
+                {
+                    OnPostAddFinding();
                     return;
                 }
                 OnPostSave();
@@ -104,12 +118,60 @@ namespace HRMS
                 {
                     LoadForEdit(editId.Value);
                     EditMode = true;
+                    LoadDisciplineContext(Input.EmployeeID);
                 }
             }
             else
             {
                 LoadRecords();
             }
+        }
+
+        private void LoadDisciplineContext(int employeeId)
+        {
+            PerformanceFindings = new List<DisciplineFindingItem>();
+            RelatedDisciplineCases = new List<DisciplineCaseItem>();
+            if (employeeId <= 0 || !CanViewDisciplineFindings) return;
+            try
+            {
+                _discipline.EnsureSchema();
+                PerformanceFindings = _discipline.GetFindingsForEmployee(employeeId, performanceOnly: true);
+                RelatedDisciplineCases = _discipline.GetCasesForEmployee(employeeId);
+            }
+            catch
+            {
+                // Discipline module tables may not exist yet; do not block performance page.
+            }
+        }
+
+        private void OnPostAddFinding()
+        {
+            var performanceId = FormInt("PerformanceID");
+            var employeeId = FormInt("EmployeeID");
+            try
+            {
+                if (!CanAddDisciplineFindings)
+                    throw new InvalidOperationException(PermissionService.AccessRestrictedMessage);
+                _discipline.AddFinding(new DisciplineFindingItem
+                {
+                    EmployeeID = employeeId,
+                    FindingSource = FormString("FindingSource"),
+                    FindingCategory = FormString("FindingCategory"),
+                    Title = FormString("FindingTitle"),
+                    Remarks = FormString("FindingRemarksText"),
+                    FindingDate = FormString("FindingDate"),
+                    Severity = FormString("FindingSeverity"),
+                    IncludeInPerformance = true
+                });
+                SetAlert("Performance finding / remark added.");
+            }
+            catch (Exception ex)
+            {
+                SetAlert(ex.Message, "error");
+            }
+            Response.Redirect(performanceId > 0
+                ? "~/PerformanceMaster.aspx?editId=" + performanceId
+                : "~/PerformanceMaster.aspx");
         }
 
         private void OnPostSave()

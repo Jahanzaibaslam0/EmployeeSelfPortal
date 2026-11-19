@@ -18,7 +18,7 @@
           <%= Server.HtmlEncode(n.Name) %>
           <span style="display:block;font-size:.75rem;color:var(--text-muted);font-weight:400;margin-top:.15rem;">
             <%= Server.HtmlEncode(string.IsNullOrWhiteSpace(n.DepartmentName) ? "All Departments" : n.DepartmentName) %>
-            · <%= n.StartDate.ToString("dd-MMM-yyyy") %> – <%= n.ValidTillDate.ToString("dd-MMM-yyyy") %>
+            &middot; <%= n.StartDate.ToString("dd-MMM-yyyy") %> &ndash; <%= n.ValidTillDate.ToString("dd-MMM-yyyy") %>
           </span>
         </a>
       <% } } %>
@@ -28,7 +28,7 @@
         <h3 style="margin-top:0;"><%= Server.HtmlEncode(Selected.Name) %></h3>
         <p style="color:var(--text-muted);font-size:.9rem;margin:.25rem 0 1rem;">
           <%= Server.HtmlEncode(string.IsNullOrWhiteSpace(Selected.DepartmentName) ? "All Departments" : Selected.DepartmentName) %>
-          · <%= Selected.StartDate.ToString("dd-MMM-yyyy") %> – <%= Selected.ValidTillDate.ToString("dd-MMM-yyyy") %>
+          &middot; <%= Selected.StartDate.ToString("dd-MMM-yyyy") %> &ndash; <%= Selected.ValidTillDate.ToString("dd-MMM-yyyy") %>
         </p>
         <div style="white-space:pre-wrap;"><%= Server.HtmlEncode(Selected.Description) %></div>
       <% } else { %>

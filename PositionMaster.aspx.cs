@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Web.UI;
 using HRMS.Services;
 
@@ -19,6 +20,7 @@ namespace HRMS
         public DateTime? PositionStartDate { get; set; }
         public DateTime? PositionEndDate { get; set; }
         public string Email { get; set; } = "";
+        public string CurrentAssignee { get; set; } = "";
         public bool IsActive { get; set; }
     }
 
@@ -51,6 +53,8 @@ namespace HRMS
         public static readonly string[] PositionDurations =
             { "Permanent", "Fixed Term", "Temporary", "Contract", "Internship" };
 
+        private readonly PositionAssignmentService _assignments = new PositionAssignmentService();
+
         public string PageTitle => "Position Master";
         public bool ShowForm { get; set; }
         public bool EditMode => Input.PositionID > 0;
@@ -62,13 +66,36 @@ namespace HRMS
         public List<LookupItem> ReportToPositions { get; set; } = new List<LookupItem>();
         public List<LookupItem> Titles { get; set; } = new List<LookupItem>();
         public List<LookupItem> PositionTypes { get; set; } = new List<LookupItem>();
+        public List<PositionEmployeeLookup> EmployeeLookups { get; set; } = new List<PositionEmployeeLookup>();
+        public PositionAssignmentItem ActiveAssignment { get; set; }
+        public List<PositionAssignmentItem> AssignmentHistory { get; set; } = new List<PositionAssignmentItem>();
+        public string SuggestedAssignStartDate
+        {
+            get
+            {
+                DateTime? latestEnd = null;
+                foreach (var h in AssignmentHistory)
+                {
+                    if (!h.AssignmentEndDate.HasValue) continue;
+                    if (!latestEnd.HasValue || h.AssignmentEndDate.Value > latestEnd.Value)
+                        latestEnd = h.AssignmentEndDate.Value;
+                }
+                if (latestEnd.HasValue)
+                    return latestEnd.Value.AddDays(1).ToString("yyyy-MM-dd");
+                return DateTime.Today.ToString("yyyy-MM-dd");
+            }
+        }
+        public string[] LeaveReasons => PositionLeaveReasons.All;
         public string AlertMessage { get; set; } = "";
         public string AlertType { get; set; } = "success";
+        public bool CanWrite => Auth.IsAdmin || Perms.CanWrite("PositionMaster");
 
         protected void Page_Load(object sender, EventArgs e)
         {
             var master = Page.Master as SiteMaster;
             if (master != null) master.PageTitleText = PageTitle;
+
+            _assignments.EnsureSchema();
 
             if (IsPostBack)
             {
@@ -76,6 +103,16 @@ namespace HRMS
                 if (string.Equals(handler, "Delete", StringComparison.OrdinalIgnoreCase))
                 {
                     SoftDelete(int.TryParse(Request.Form["deleteId"], out var d) ? d : 0);
+                    return;
+                }
+                if (string.Equals(handler, "Assign", StringComparison.OrdinalIgnoreCase))
+                {
+                    AssignEmployee();
+                    return;
+                }
+                if (string.Equals(handler, "CloseAssignment", StringComparison.OrdinalIgnoreCase))
+                {
+                    CloseAssignment();
                     return;
                 }
                 SavePosition();
@@ -96,15 +133,76 @@ namespace HRMS
             {
                 ShowForm = true;
                 if (editId.HasValue && editId > 0)
+                {
                     LoadPosition(editId.Value);
+                    LoadAssignmentData(editId.Value);
+                }
                 else
                 {
                     Input.PositionNo = GenerateNextPositionNo();
                     Input.PositionStartDate = DateTime.Today.ToString("yyyy-MM-dd");
                 }
                 LoadReportToPositions();
+                EmployeeLookups = _assignments.GetEmployeeLookups();
             }
             else LoadPositionList();
+        }
+
+        private void LoadAssignmentData(int positionId)
+        {
+            ActiveAssignment = _assignments.GetActiveAssignment(positionId);
+            AssignmentHistory = _assignments.GetHistory(positionId);
+        }
+
+        private void AssignEmployee()
+        {
+            var positionID = int.TryParse(Request.Form["positionID"], out var pid) ? pid : 0;
+            var employeeID = int.TryParse(Request.Form["assignEmployeeID"], out var eid) ? eid : 0;
+            DateTime startDate = DateTime.TryParse(FormString("assignStartDate"), out var sd) ? sd.Date : DateTime.Today;
+
+            try
+            {
+                if (!CanWrite)
+                    throw new InvalidOperationException("You do not have permission to assign employees to positions.");
+                _assignments.AssignEmployee(positionID, employeeID, startDate, Auth.CurrentUserId ?? 0);
+                SetAlert("Employee assigned to position successfully.");
+            }
+            catch (Exception ex)
+            {
+                SetAlert(ex.Message, "error");
+            }
+
+            Response.Redirect(positionID > 0
+                ? "~/PositionMaster.aspx?editId=" + positionID
+                : "~/PositionMaster.aspx");
+        }
+
+        private void CloseAssignment()
+        {
+            var positionID = int.TryParse(Request.Form["positionID"], out var pid) ? pid : 0;
+            var assignmentID = int.TryParse(Request.Form["closeAssignmentId"], out var aid) ? aid : 0;
+            DateTime endDate = DateTime.TryParse(FormString("closeEndDate"), out var ed) ? ed.Date : DateTime.Today;
+            var reason = FormString("closeReason");
+            var reasonOther = FormString("closeReasonOther");
+            if (string.Equals(reason, "Other", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(reasonOther))
+                reason = "Other: " + reasonOther.Trim();
+
+            try
+            {
+                if (!CanWrite)
+                    throw new InvalidOperationException("You do not have permission to close position assignments.");
+                _assignments.CloseAssignment(positionID, assignmentID, endDate, reason, Auth.CurrentUserId ?? 0);
+                SetAlert("Assignment closed. The position is now available for another employee.");
+            }
+            catch (Exception ex)
+            {
+                SetAlert(ex.Message, "error");
+            }
+
+            Response.Redirect(positionID > 0
+                ? "~/PositionMaster.aspx?editId=" + positionID
+                : "~/PositionMaster.aspx");
         }
 
         private void SavePosition()
@@ -175,21 +273,24 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);", conn))
                             AuditHelper.AddCreatedBy(cmd, Auth.CurrentUserId);
                             positionID = Convert.ToInt32(cmd.ExecuteScalar());
                         }
-                        SetAlert("Position created successfully.");
+                        SetAlert("Position created successfully. You can now assign an employee.");
                     }
                 }
-                Response.Redirect("~/PositionMaster.aspx?editId=" + positionID);
             }
             catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
             {
                 SetAlert("Position number already exists.", "error");
                 Response.Redirect(positionID > 0 ? "~/PositionMaster.aspx?editId=" + positionID : "~/PositionMaster.aspx?newPosition=1");
+                return;
             }
             catch (Exception ex)
             {
                 SetAlert("Error: " + ex.Message, "error");
                 Response.Redirect(positionID > 0 ? "~/PositionMaster.aspx?editId=" + positionID : "~/PositionMaster.aspx?newPosition=1");
+                return;
             }
+
+            Response.Redirect("~/PositionMaster.aspx?editId=" + positionID);
         }
 
         private void SoftDelete(int deleteId)
@@ -382,6 +483,13 @@ ORDER BY p.IsActive DESC, p.PositionNo;", conn))
                         });
                     }
                 }
+            }
+
+            var labels = _assignments.GetActiveAssigneeLabels(Positions.Select(p => p.PositionID));
+            foreach (var p in Positions)
+            {
+                if (labels.TryGetValue(p.PositionID, out var label))
+                    p.CurrentAssignee = label;
             }
         }
     }

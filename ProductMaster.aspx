@@ -12,7 +12,7 @@
   </div>
   <div class="card-body table-responsive">
     <table class="data-table">
-      <thead><tr><th>Code</th><th>Name</th><th>Item ID</th><th>Inventory Type</th><th>Product Group</th><th>Brand</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Code</th><th>Name</th><th>Item ID</th><th>Inventory Type</th><th>Product Group</th><th>Brand</th><th>Status</th><th>Profile %</th><th></th></tr></thead>
       <tbody>
       <% foreach (var p in Products) { %>
       <tr>
@@ -23,6 +23,12 @@
         <td><%= Server.HtmlEncode(p.ProductGroupName) %></td>
         <td><%= Server.HtmlEncode(p.BrandCode) %></td>
         <td><%= p.IsActive ? "Active" : "Inactive" %></td>
+        <td class="emp-complete-cell">
+          <div class="emp-complete-mini <%= p.CompletionTone %>" title="Product profile completion">
+            <span><%= Server.HtmlEncode(p.CompletionDisplay) %></span>
+            <div class="track"><div class="fill" style="width:<%= p.CompletionBarWidth %>%;"></div></div>
+          </div>
+        </td>
         <td>
           <a href="/ProductMaster.aspx?editId=<%= p.ProductID %>">Edit</a>
           <% if (p.IsActive) { %>
@@ -31,7 +37,7 @@
         </td>
       </tr>
       <% } %>
-      <% if (Products.Count == 0) { %><tr><td colspan="8">No products found.</td></tr><% } %>
+      <% if (Products.Count == 0) { %><tr><td colspan="9">No products found.</td></tr><% } %>
       </tbody>
     </table>
   </div>
@@ -42,7 +48,27 @@
   <span><%= EditMode ? "Edit Product" : "New Product" %> <%= Server.HtmlEncode(Input.ProductCode) %></span>
 </div>
 <div class="card">
-  <div class="card-header"><h2><%= EditMode ? "Edit Product" : "Add Product" %></h2></div>
+  <div class="card-header emp-profile-score-header">
+    <h2><%= EditMode ? "Edit Product" : "Add Product" %></h2>
+    <div class="emp-profile-score <%= ProfileScore.ToneClass %>">
+      <div class="emp-profile-score__top">
+        <span class="emp-profile-score__label">Profile completion</span>
+        <strong class="emp-profile-score__pct"><%= Server.HtmlEncode(ProfileScore.PercentDisplay) %></strong>
+      </div>
+      <div class="emp-profile-score__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= ProfileScore.BarWidth %>" aria-label="Product profile completion">
+        <div class="emp-profile-score__fill" style="width:<%= ProfileScore.BarWidth %>%;"></div>
+      </div>
+      <div class="emp-profile-score__cats">
+        <% foreach (var cat in ProfileScore.Categories) { %>
+        <div class="emp-profile-score__cat">
+          <span><%= Server.HtmlEncode(cat.Name) %></span>
+          <strong><%= cat.Score.ToString("0.#") %>%</strong>
+          <em><%= Server.HtmlEncode(cat.Detail) %></em>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
   <div class="card-body">
     <input type="hidden" name="ProductID" value="<%= Input.ProductID %>" />
     <input type="hidden" name="EditMode" value="<%= EditMode ? "true" : "false" %>" />
@@ -117,6 +143,9 @@
         <select name="HSCodeID" class="form-control"><option value="0">-- Select --</option>
         <% foreach (var item in HSCodes) { %><option value="<%= item.Id %>" <%= Input.HSCodeID==item.Id?"selected":"" %>><%= Server.HtmlEncode(item.Name) %></option><% } %>
         </select></div>
+      <div class="form-group"><label>GTIN Number</label>
+        <input type="text" name="GTINNumber" class="form-control" maxlength="14" value="<%= Server.HtmlEncode(Input.GTINNumber) %>" placeholder="8, 12, 13 or 14 digits" />
+      </div>
 
       <div class="form-group"><label class="checkbox-label"><input type="checkbox" name="IsActive" value="true" <%= Input.IsActive?"checked":"" %> /> Active</label></div>
     </div>

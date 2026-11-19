@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Globalization;
+using System.Linq;
 using System.Web.UI;
 using HRMS.Services;
 
@@ -16,6 +18,11 @@ namespace HRMS
         public string ProductGroupName { get; set; } = "";
         public string BrandCode { get; set; } = "";
         public bool IsActive { get; set; } = true;
+        public decimal CompletionPercent { get; set; }
+        public string CompletionDisplay => CompletionPercent.ToString("0.#", CultureInfo.InvariantCulture) + "%";
+        public string CompletionBarWidth => CompletionPercent.ToString("0.##", CultureInfo.InvariantCulture);
+        public string CompletionTone =>
+            CompletionPercent >= 100m ? "is-complete" : CompletionPercent >= 70m ? "is-good" : CompletionPercent >= 40m ? "is-mid" : "is-low";
     }
 
     public class ProductInput
@@ -41,6 +48,7 @@ namespace HRMS
         public int ProductTeamID { get; set; }
         public int HSCodeID { get; set; }
         public string SellingPrice { get; set; } = "";
+        public string GTINNumber { get; set; } = "";
     }
 
     public partial class ProductMasterPage : AppBasePage
@@ -65,11 +73,14 @@ namespace HRMS
         public bool ShowForm { get; set; }
         public string AlertMessage { get; set; } = "";
         public string AlertType { get; set; } = "success";
+        public EmployeeProfileCompletionScore ProfileScore { get; private set; } = new EmployeeProfileCompletionScore();
+        private readonly MasterProfileCompletionService _profileCompletion = new MasterProfileCompletionService();
 
         protected void Page_Load(object sender, EventArgs e)
         {
             var master = Page.Master as SiteMaster;
             if (master != null) master.PageTitleText = PageTitle;
+            new ProductSerializationService().EnsureSchema();
 
             if (IsPostBack)
             {
@@ -85,6 +96,7 @@ namespace HRMS
 
             var newProduct = Request.QueryString["newProduct"] == "1" || Request.QueryString["newProduct"] == "true";
             OnGet(QueryInt("editId"), newProduct);
+            if (ShowForm) RefreshProfileScore();
         }
 
         private void OnGet(int? editId, bool newProduct)
@@ -137,6 +149,7 @@ namespace HRMS
                 ProductTeamID = int.TryParse(Request.Form["ProductTeamID"], out var n) ? n : 0,
                 HSCodeID = int.TryParse(Request.Form["HSCodeID"], out var o) ? o : 0,
                 SellingPrice = FormString("SellingPrice"),
+                GTINNumber = FormString("GTINNumber"),
                 IsActive = FormBool("IsActive")
             };
 
@@ -197,6 +210,7 @@ WHERE ProductID = @ProductID;", conn))
             ShowForm = true;
             if (!EditMode)
                 Input.ProductCode = GenerateNextProductCode();
+            RefreshProfileScore();
         }
 
         private void SaveRecord(SqlConnection conn, ProductInput input, bool editMode)
@@ -210,7 +224,7 @@ UPDATE tblProduct SET ProductName=@ProductName, IsActive=@IsActive, InventoryTyp
   BrandCodeID=@BrandCodeID, BrandGroupID=@BrandGroupID, ProductGroupID=@ProductGroupID,
   ProductSalesGroupID=@ProductSalesGroupID, ItemGroupID=@ItemGroupID, SalesCategoryID=@SalesCategoryID,
   ProductDivisionID=@ProductDivisionID, ProductTeamID=@ProductTeamID, HSCodeID=@HSCodeID,
-  SellingPrice=@SellingPrice, ModifiedOn=GETDATE(), ModifiedByUserID=@ModifiedByUserID
+  SellingPrice=@SellingPrice, GTINNumber=@GTINNumber, ModifiedOn=GETDATE(), ModifiedByUserID=@ModifiedByUserID
 WHERE ProductID=@ProductID;", conn))
                 {
                     BindParams(cmd, input);
@@ -228,13 +242,13 @@ INSERT INTO tblProduct
   SUUnitOfMeasureID, PUUnitOfMeasureID, IUUnitOfMeasureID,
   ProductNatureID, ItemRegisteredID, BrandCodeID, BrandGroupID, ProductGroupID,
   ProductSalesGroupID, ItemGroupID, SalesCategoryID, ProductDivisionID, ProductTeamID, HSCodeID,
-  SellingPrice, CreatedOn, CreatedByUserID)
+  SellingPrice, GTINNumber, CreatedOn, CreatedByUserID)
 VALUES
  (@ProductCode, @ProductName, @IsActive, @InventoryTypeID, @ItemID,
   @SUUnitOfMeasureID, @PUUnitOfMeasureID, @IUUnitOfMeasureID,
   @ProductNatureID, @ItemRegisteredID, @BrandCodeID, @BrandGroupID, @ProductGroupID,
   @ProductSalesGroupID, @ItemGroupID, @SalesCategoryID, @ProductDivisionID, @ProductTeamID, @HSCodeID,
-  @SellingPrice, GETDATE(), @CreatedByUserID);
+  @SellingPrice, @GTINNumber, GETDATE(), @CreatedByUserID);
 SELECT CAST(SCOPE_IDENTITY() AS INT);", conn))
             {
                 BindParams(ins, input);
@@ -265,10 +279,17 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);", conn))
             cmd.Parameters.AddWithValue("@ProductTeamID", Fk(input.ProductTeamID));
             cmd.Parameters.AddWithValue("@HSCodeID", Fk(input.HSCodeID));
             cmd.Parameters.AddWithValue("@SellingPrice", DecimalOrNull(input.SellingPrice));
+            var gtin = (input.GTINNumber ?? "").Trim();
+            if (!string.IsNullOrEmpty(gtin))
+                ProductSerializationService.NormalizeGtin(gtin, required: false);
+            cmd.Parameters.AddWithValue("@GTINNumber", string.IsNullOrEmpty(gtin) ? (object)DBNull.Value : gtin);
         }
 
-        private static object DecimalOrNull(string value) =>
-            decimal.TryParse(value, out var d) ? (object)d : DBNull.Value;
+        private static object DecimalOrNull(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return DBNull.Value;
+            return decimal.TryParse(value.Trim(), out var d) ? (object)d : DBNull.Value;
+        }
 
         private static object Fk(int id) => id > 0 ? (object)id : DBNull.Value;
 
@@ -322,6 +343,29 @@ ORDER BY p.IsActive DESC, p.ProductCode;", conn))
                     }
                 }
             }
+            ApplyListCompletionScores();
+        }
+
+        private void ApplyListCompletionScores()
+        {
+            if (Products == null || Products.Count == 0) return;
+            try
+            {
+                var scores = _profileCompletion.ScoreProducts(Products.Select(p => p.ProductID).ToList());
+                foreach (var row in Products)
+                {
+                    EmployeeProfileCompletionScore score;
+                    if (scores.TryGetValue(row.ProductID, out score) && score != null)
+                        row.CompletionPercent = score.Percent;
+                }
+            }
+            catch { }
+        }
+
+        private void RefreshProfileScore()
+        {
+            try { ProfileScore = _profileCompletion.CalculateProduct(Input); }
+            catch { ProfileScore = new EmployeeProfileCompletionScore(); }
         }
 
         private void LoadForEdit(int productId)
@@ -332,7 +376,7 @@ SELECT ProductID, ProductCode, ProductName, IsActive, InventoryTypeID, ItemID,
        SUUnitOfMeasureID, PUUnitOfMeasureID, IUUnitOfMeasureID,
        ProductNatureID, ItemRegisteredID, BrandCodeID, BrandGroupID, ProductGroupID,
        ProductSalesGroupID, ItemGroupID, SalesCategoryID, ProductDivisionID, ProductTeamID, HSCodeID,
-       SellingPrice
+       SellingPrice, GTINNumber
 FROM tblProduct WHERE ProductID = @ProductID;", conn))
             {
                 cmd.Parameters.AddWithValue("@ProductID", productId);
@@ -362,7 +406,8 @@ FROM tblProduct WHERE ProductID = @ProductID;", conn))
                         ProductDivisionID = dr.IsDBNull(17) ? 0 : dr.GetInt32(17),
                         ProductTeamID = dr.IsDBNull(18) ? 0 : dr.GetInt32(18),
                         HSCodeID = dr.IsDBNull(19) ? 0 : dr.GetInt32(19),
-                        SellingPrice = dr.IsDBNull(20) ? "" : dr.GetDecimal(20).ToString("0.####")
+                        SellingPrice = dr.IsDBNull(20) ? "" : dr.GetDecimal(20).ToString("0.####"),
+                        GTINNumber = dr.FieldCount > 21 && !dr.IsDBNull(21) ? dr.GetString(21) : ""
                     };
                 }
             }

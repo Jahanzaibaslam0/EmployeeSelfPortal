@@ -52,7 +52,7 @@
 <asp:Content ID="Main" ContentPlaceHolderID="MainContent" runat="server">
 
 <div class="hierarchy-toolbar">
-  <a href="/PositionMaster.aspx" class="btn btn-secondary">← Back to Position Master</a>
+  <a href="/PositionMaster.aspx" class="btn btn-secondary">&larr; Back to Position Master</a>
   <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
     <% if (ActiveOnly) { %>
       <a href="/PositionHierarchy.aspx?activeOnly=false" class="filter-toggle">Show All Positions</a>
@@ -89,17 +89,17 @@
              var d = row.Data;
              var indent = row.Depth * 24; %>
         <div class="tree-node" style="margin-left:<%= indent %>px">
-          <% if (row.Depth > 0) { %><span class="tree-connector">└</span><% } %>
+          <% if (row.Depth > 0) { %><span class="tree-connector">&#9492;</span><% } %>
           <div class="tree-node-main">
             <div class="tree-node-title">
               <%= Server.HtmlEncode(d.PositionNo) %>
               <% if (!string.IsNullOrEmpty(d.Description)) { %>
-              <span style="font-weight:500; color:var(--text-dark);"> — <%= Server.HtmlEncode(d.Description) %></span>
+              <span style="font-weight:500; color:var(--text-dark);"> &mdash; <%= Server.HtmlEncode(d.Description) %></span>
               <% } %>
             </div>
             <div class="tree-node-meta">
               <% if (!string.IsNullOrEmpty(d.JobTitle)) { %><span><%= Server.HtmlEncode(d.JobTitle) %></span><% } %>
-              <% if (!string.IsNullOrEmpty(d.DepartmentName)) { %><span> · <%= Server.HtmlEncode(d.DepartmentName) %></span><% } %>
+              <% if (!string.IsNullOrEmpty(d.DepartmentName)) { %><span> &middot; <%= Server.HtmlEncode(d.DepartmentName) %></span><% } %>
             </div>
             <% if (!string.IsNullOrEmpty(d.AssignedWorkers)) { %>
             <div class="tree-node-workers">Workers: <%= Server.HtmlEncode(d.AssignedWorkers) %></div>
@@ -128,14 +128,14 @@
             <div class="tree-node-title">
               <%= Server.HtmlEncode(d.PositionNo) %>
               <% if (!string.IsNullOrEmpty(d.Description)) { %>
-              <span style="font-weight:500; color:var(--text-dark);"> — <%= Server.HtmlEncode(d.Description) %></span>
+              <span style="font-weight:500; color:var(--text-dark);"> &mdash; <%= Server.HtmlEncode(d.Description) %></span>
               <% } %>
             </div>
             <div class="tree-node-meta">
               <% if (!string.IsNullOrEmpty(d.JobTitle)) { %><span><%= Server.HtmlEncode(d.JobTitle) %></span><% } %>
-              <% if (!string.IsNullOrEmpty(d.DepartmentName)) { %><span> · <%= Server.HtmlEncode(d.DepartmentName) %></span><% } %>
+              <% if (!string.IsNullOrEmpty(d.DepartmentName)) { %><span> &middot; <%= Server.HtmlEncode(d.DepartmentName) %></span><% } %>
               <% if (!string.IsNullOrEmpty(d.ReportsToPositionNo)) { %>
-              <span> · Reports to: <%= Server.HtmlEncode(d.ReportsToPositionNo) %> (missing)</span>
+              <span> &middot; Reports to: <%= Server.HtmlEncode(d.ReportsToPositionNo) %> (missing)</span>
               <% } %>
             </div>
             <% if (!string.IsNullOrEmpty(d.AssignedWorkers)) { %>
@@ -162,7 +162,7 @@
     </div>
     <div class="card-body table-responsive">
       <input type="text" id="positionSearch" class="form-control search-box"
-             placeholder="Search position no, job, department, workers…" oninput="filterPositionTable()" />
+             placeholder="Search position no, job, department, workers&hellip;" oninput="filterPositionTable()" />
       <table class="data-table" id="flatTable">
         <thead class="grid-header">
           <tr>
@@ -184,8 +184,8 @@
             <td><strong><%= Server.HtmlEncode(p.PositionNo) %></strong></td>
             <td><%= Server.HtmlEncode(p.JobTitle) %></td>
             <td><%= Server.HtmlEncode(p.DepartmentName) %></td>
-            <td><%= string.IsNullOrEmpty(p.ReportsToPositionNo) ? "—" : Server.HtmlEncode(p.ReportsToPositionNo) %></td>
-            <td><%= string.IsNullOrEmpty(p.AssignedWorkers) ? "—" : Server.HtmlEncode(p.AssignedWorkers) %></td>
+            <td><%= string.IsNullOrEmpty(p.ReportsToPositionNo) ? "\u2014" : Server.HtmlEncode(p.ReportsToPositionNo) %></td>
+            <td><%= string.IsNullOrEmpty(p.AssignedWorkers) ? "\u2014" : Server.HtmlEncode(p.AssignedWorkers) %></td>
             <td>
               <span class="badge <%= p.IsActive ? "badge-success" : "badge-danger" %>">
                 <%= p.IsActive ? "Active" : "Inactive" %>
